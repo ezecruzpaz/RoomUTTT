@@ -16,13 +16,13 @@ RoomUTTT es una aplicación móvil Android para la reserva de cuartos y salas de
 
 ### Capturas de Pantalla
 - **Login**:
-  ![Login](screenshots/login.png)
-- **Registro**:
-  ![Registro](screenshots/register.png)
-- **Pantalla Principal (Mapa)**:
-  ![Main](screenshots/main.png)
+<img width="576" height="1280" alt="image" src="https://github.com/user-attachments/assets/e1064c5d-6192-4558-9a36-ce3955ceae9c" />
 
-(Agrega las capturas reales en la carpeta `screenshots/` al subir a GitHub).
+- **Registro**:
+ <img width="576" height="1280" alt="image" src="https://github.com/user-attachments/assets/ce7e6374-d340-43fe-b76b-d57dce636507" />
+
+- 
+
 
 ## Tecnologías Utilizadas
 - **Lenguaje**: Kotlin
