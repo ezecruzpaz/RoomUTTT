@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">RoomUTTT</string>
+    <string name="default_web_client_id">626787040705-58tggf934ms2v7m151rc9g0he8g97mri.apps.googleusercontent.com</string>
+    <string name="search_hint">Buscar cuarto</string>
+</resources>

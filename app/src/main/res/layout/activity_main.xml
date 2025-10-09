@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- Toolbar -->
+    <com.google.android.material.appbar.AppBarLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar">
+
+        <androidx.appcompat.widget.Toolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            app:title="Inicio"
+            app:popupTheme="@style/ThemeOverlay.AppCompat.Light" />
+
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <!-- Contenedor Principal -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:layout_marginTop="?attr/actionBarSize">
+
+        <!-- SearchView -->
+        <androidx.appcompat.widget.SearchView
+            android:id="@+id/search_view"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:queryHint="Buscar cuarto"
+            app:queryHint="@string/search_hint" />
+
+        <!-- Mapa -->
+        <fragment
+            android:id="@+id/map_fragment"
+            android:name="com.google.android.gms.maps.SupportMapFragment"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <!-- Tarjeta de Cuarto Inferior -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/card_room"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="16dp"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="4dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:padding="16dp">
+
+                <!-- Imagen del Cuarto -->
+                <ImageView
+                    android:layout_width="80dp"
+                    android:layout_height="80dp"
+                    android:src="@drawable/room_sample"
+                android:scaleType="centerCrop" />
+
+                <!-- Detalles -->
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:layout_marginStart="12dp">
+
+                    <TextView
+                        android:id="@+id/tv_room_title"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Sala de Conferencias A"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tv_capacity"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="Capacidad: 20 personas"
+                        android:textSize="14sp"
+                        android:textColor="#666666" />
+
+                </LinearLayout>
+
+                <!-- Botón Reservar -->
+                <TextView
+                    android:id="@+id/btn_reserve"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/button_reserve"
+                    android:paddingHorizontal="16dp"
+                    android:paddingVertical="8dp"
+                    android:text="Reservar"
+                    android:textColor="@android:color/white"
+                    android:textSize="14sp" />
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+    </LinearLayout>
+
+    <!-- Iconos Flotantes (Perfil y Notificaciones) -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/iv_profile"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="end|top"
+        android:layout_margin="16dp"
+        android:src="@drawable/ic_profile"
+        app:fabSize="mini" />
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/iv_notifications"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="end|top"
+        android:layout_marginEnd="80dp"
+        android:layout_marginTop="16dp"
+        android:src="@drawable/ic_notifications"
+        app:fabSize="mini" />
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

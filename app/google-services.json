@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "626787040705",
+    "project_id": "roomuttt-48257",
+    "storage_bucket": "roomuttt-48257.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:626787040705:android:69079a3741942eb097c340",
+        "android_client_info": {
+          "package_name": "com.example.roomuttt"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "626787040705-1fnj7bqo4i0pegmvrjodfaccc0q9p3ei.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.roomuttt",
+            "certificate_hash": "6e985916808f9fae6b3bbe08430fb664a0c63f17"
+          }
+        },
+        {
+          "client_id": "626787040705-58tggf934ms2v7m151rc9g0he8g97mri.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBMOJK_aY1wvN1jHoE13Dm1_r7BUrYB7RQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "626787040705-58tggf934ms2v7m151rc9g0he8g97mri.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
