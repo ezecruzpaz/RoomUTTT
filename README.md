@@ -1,34 +1,46 @@
-Descripción
-RoomUTTT es una aplicación Android para la reservación de cuartos en un campus universitario (e.g., UTTT - Universidad Tecnológica de Tula-Tepeji). Permite autenticación con Google y email/password, registro de usuarios, y una pantalla principal con mapa interactivo (Google Maps) para buscar y reservar cuartos. Desarrollada con MVVM, Hilt para DI, Firebase para Auth, y Kotlin.
-Características
+# RoomUTTT
 
-Autenticación Segura: Login con Google Sign-In y email/password (con verificación de email).
-Registro de Usuarios: Formulario con validación (email, nombre, contraseña, términos).
-Pantalla Principal: Mapa con marcadores de cuartos, búsqueda por nombre, tarjeta de detalles, y botones para perfil/notificaciones.
-Navegación: Flujo Login > MainActivity (con scroll y diseño responsive).
-Permisos: Solicita ubicación para centrar el mapa en el usuario.
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Tecnologías
+## Descripción
 
-Lenguaje: Kotlin
-Arquitectura: MVVM con Hilt (DI), Coroutines, Flow
-Backend: Firebase Authentication, Firestore (para perfiles futuros)
-Mapa: Google Maps SDK
-UI: Material Design Components, ConstraintLayout, ScrollView
-Otras: ViewBinding, Lifecycle, Navigation Component
+RoomUTTT es una aplicación móvil Android para la reserva de cuartos y salas de conferencias en un campus universitario. Utiliza Firebase para autenticación (email/password y Google Sign-In), Google Maps para visualización de ubicaciones, y MVVM con Hilt para arquitectura limpia. La app permite registro/login, búsqueda de cuartos en un mapa, y reserva básica.
 
-Requisitos
+### Características Principales
+- **Autenticación Segura**: Login con email/contraseña y Google Sign-In.
+- **Registro de Usuarios**: Formulario con validación y verificación de email.
+- **Mapa Interactivo**: Muestra cuartos con marcadores, búsqueda y ubicación en tiempo real.
+- **Pantalla Principal**: Barra de búsqueda, notificaciones, perfil, y tarjeta de cuarto con botón de reserva.
+- **Arquitectura MVVM**: Use cases, repositories, ViewModels con coroutines y Flow.
+- **Diseño Material**: Temas modernos con scroll fluido y UI responsiva.
 
-Android Studio (Flamingo o superior)
-SDK mínimo: API 24 (Android 7.0)
-Google Play Services (para Maps y Sign-In)
-Firebase Project configurado (ver Setup)
+### Capturas de Pantalla
+- **Login**:
+  ![Login](screenshots/login.png)
+- **Registro**:
+  ![Registro](screenshots/register.png)
+- **Pantalla Principal (Mapa)**:
+  ![Main](screenshots/main.png)
 
-Capturas de Pantalla
+(Agrega las capturas reales en la carpeta `screenshots/` al subir a GitHub).
 
-Login:
-<img width="385" height="664" alt="image" src="https://github.com/user-attachments/assets/9a83336d-1553-4918-884d-203b91f1bc82" />
+## Tecnologías Utilizadas
+- **Lenguaje**: Kotlin
+- **Arquitectura**: MVVM + Hilt (DI)
+- **Backend**: Firebase Authentication, Firestore (para usuarios/cuartos)
+- **Mapa**: Google Maps SDK for Android
+- **UI**: Material Components, ConstraintLayout, Coroutines, Lifecycle
+- **Otras**: Google Play Services (Auth & Location)
 
-Registro:
-<img width="336" height="596" alt="image" src="https://github.com/user-attachments/assets/747d8da4-9f03-4428-aeeb-a77fece666db" />
+## Requisitos
+- **Android Studio**: Hedgehog (2023.1.1) o superior.
+- **SDK**: Min SDK 24, Target SDK 34.
+- **Firebase**: Proyecto configurado con `google-services.json`.
+- **Google Maps API Key**: Obtén una en [Google Cloud Console](https://console.cloud.google.com/apis/library/maps-android-backend.googleapis.com) y agrégala en `AndroidManifest.xml`.
 
+## Instalación y Configuración
+
+### 1. Clona el Repositorio
+```bash
+git clone https://github.com/tu-usuario/roomuttt.git
+cd roomuttt
