@@ -24,8 +24,8 @@ class MainViewModel @Inject constructor() : ViewModel() {
         viewModelScope.launch {
             // Simulado; cambia a llamada a Firebase/Firestore
             val sampleRooms = listOf(
-                Room("Sala de Conferencias A", 20, 20.1234, -99.5678),  // Lat/Lng de Tula-Tepeji
-                Room("Cuarto Estudiantil B", 4, 20.1250, -99.5700)
+                Room("Sala de Conferencias A", 20, 20.0564, -99.3436),  // UTTT - Tula de Allende, Hidalgo
+                Room("Sala de Conferencias A", 20, 20.0569, -99.3441),  // UTTT Campus Principal
             )
             _rooms.value = sampleRooms
         }

@@ -94,5 +94,7 @@ dependencies {
 
     implementation ("com.google.android.material:material:1.11.0")  // Versión reciente
 
+    implementation ("androidx.compose.material:material-icons-extended:1.5.4")
+
     implementation ("com.google.android.material:material:1.9.0")
 }

@@ -2,6 +2,7 @@ package com.example.roomuttt.ui.home
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.location.Location
 import android.os.Bundle
 import android.util.Log
 import android.view.Menu
@@ -9,21 +10,22 @@ import android.view.MenuItem
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SearchView
-import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.example.roomuttt.R
-import com.example.roomuttt.domain.model.Room
 import com.example.roomuttt.ui.home.viewmodel.MainViewModel
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
-import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.material.card.MaterialCardView
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -40,9 +42,23 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var tvCapacity: TextView
     private lateinit var btnReserve: TextView
     private var googleMap: GoogleMap? = null
+    private lateinit var fusedLocationClient: FusedLocationProviderClient
 
-    private val LOCATION_PERMISSION_REQUEST_CODE = 1001
     private val TAG = "MainActivity"
+
+    // Launcher moderno para permisos de ubicación
+    private val locationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            Log.d(TAG, "Permiso de ubicación concedido")
+            enableMyLocation()
+            getCurrentLocation()
+        } else {
+            Log.w(TAG, "Permiso de ubicación denegado")
+            showPermissionDeniedDialog()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -50,7 +66,30 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         Log.d(TAG, "onCreate iniciado")
 
+        // Inicializar cliente de ubicación
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+
         // Inicializar vistas
+        initViews()
+
+        // Configurar listeners
+        setupListeners()
+
+        // Inicializar mapa
+        val mapFragment = supportFragmentManager.findFragmentById(R.id.map_fragment) as SupportMapFragment
+        mapFragment.getMapAsync(this)
+
+        // Observa datos del ViewModel
+        observeViewModel()
+
+        // Carga inicial de cuartos
+        viewModel.loadRooms()
+
+        // Solicitar permisos de ubicación
+        checkAndRequestLocationPermission()
+    }
+
+    private fun initViews() {
         searchView = findViewById(R.id.search_view)
         ivProfile = findViewById(R.id.iv_profile)
         ivNotifications = findViewById(R.id.iv_notifications)
@@ -62,7 +101,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         // Configurar Toolbar
         supportActionBar?.title = "Inicio"
         supportActionBar?.setDisplayHomeAsUpEnabled(false)
+    }
 
+    private fun setupListeners() {
         // Configurar SearchView
         searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
             override fun onQueryTextSubmit(query: String?): Boolean {
@@ -88,15 +129,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         btnReserve.setOnClickListener {
             Toast.makeText(this, "Reservar Sala", Toast.LENGTH_SHORT).show()
         }
+    }
 
-        // Inicializar mapa
-        val mapFragment = supportFragmentManager.findFragmentById(R.id.map_fragment) as SupportMapFragment
-        mapFragment.getMapAsync(this)
-
-        // Solicitar permisos de ubicación
-        requestLocationPermission()
-
-        // Observa datos del ViewModel
+    private fun observeViewModel() {
         lifecycleScope.launch {
             viewModel.rooms.collect { rooms ->
                 if (rooms.isNotEmpty()) {
@@ -106,9 +141,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 }
             }
         }
-
-        // Carga inicial de cuartos
-        viewModel.loadRooms()
     }
 
     override fun onMapReady(googleMap: GoogleMap) {
@@ -116,15 +148,121 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         this.googleMap = googleMap
         viewModel.initMap(googleMap)
 
-        // Verifica permisos ANTES de habilitar "mi ubicación" (resuelve warnings)
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            googleMap.isMyLocationEnabled = true
-            Log.d(TAG, "Ubicación habilitada en mapa")
-        } else {
-            Log.w(TAG, "Permiso de ubicación no concedido - No se habilita 'mi ubicación'")
-            // Opcional: Muestra Toast
-            Toast.makeText(this, "Habilita ubicación para ver tu posición", Toast.LENGTH_SHORT).show()
+        // Configurar controles del mapa
+        googleMap.uiSettings.apply {
+            isZoomControlsEnabled = true
+            isMyLocationButtonEnabled = true
+            isCompassEnabled = true
         }
+
+        // Habilitar ubicación si ya tenemos permiso
+        if (hasLocationPermission()) {
+            enableMyLocation()
+            getCurrentLocation()
+        }
+    }
+
+    private fun checkAndRequestLocationPermission() {
+        when {
+            hasLocationPermission() -> {
+                Log.d(TAG, "Permiso de ubicación ya concedido")
+                enableMyLocation()
+                getCurrentLocation()
+            }
+            shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_FINE_LOCATION) -> {
+                // Mostrar explicación de por qué necesitamos el permiso
+                showPermissionRationaleDialog()
+            }
+            else -> {
+                // Solicitar permiso directamente
+                locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+            }
+        }
+    }
+
+    private fun hasLocationPermission(): Boolean {
+        return ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+    }
+
+    private fun enableMyLocation() {
+        if (!hasLocationPermission()) {
+            Log.w(TAG, "No se puede habilitar ubicación sin permiso")
+            return
+        }
+
+        try {
+            googleMap?.isMyLocationEnabled = true
+            viewModel.onLocationPermissionGranted()
+            Log.d(TAG, "Ubicación habilitada en mapa")
+        } catch (e: SecurityException) {
+            Log.e(TAG, "Error al habilitar ubicación: ${e.message}")
+        }
+    }
+
+    private fun getCurrentLocation() {
+        if (!hasLocationPermission()) {
+            Log.w(TAG, "No se puede obtener ubicación sin permiso")
+            return
+        }
+
+        try {
+            fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
+                if (location != null) {
+                    val currentLatLng = LatLng(location.latitude, location.longitude)
+                    googleMap?.animateCamera(
+                        CameraUpdateFactory.newLatLngZoom(currentLatLng, 15f)
+                    )
+                    Log.d(TAG, "Ubicación actual: ${location.latitude}, ${location.longitude}")
+                    Toast.makeText(this, "Ubicación obtenida", Toast.LENGTH_SHORT).show()
+                } else {
+                    Log.w(TAG, "Ubicación es null - usando ubicación predeterminada")
+                    useDefaultLocation()
+                }
+            }.addOnFailureListener { e ->
+                Log.e(TAG, "Error al obtener ubicación: ${e.message}")
+                useDefaultLocation()
+            }
+        } catch (e: SecurityException) {
+            Log.e(TAG, "Error de seguridad al obtener ubicación: ${e.message}")
+            useDefaultLocation()
+        }
+    }
+
+    private fun useDefaultLocation() {
+        // Ubicación predeterminada (puedes cambiarla a la ubicación de tu universidad)
+        val defaultLocation = LatLng(20.0910, -98.7624) // Tula de Allende, Hidalgo
+        googleMap?.animateCamera(
+            CameraUpdateFactory.newLatLngZoom(defaultLocation, 12f)
+        )
+        Toast.makeText(this, "Usando ubicación predeterminada", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun showPermissionRationaleDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("Permiso de Ubicación")
+            .setMessage("Esta aplicación necesita acceso a tu ubicación para mostrar salas cercanas y ayudarte a navegar en el campus.")
+            .setPositiveButton("Aceptar") { _, _ ->
+                locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+            }
+            .setNegativeButton("Cancelar") { dialog, _ ->
+                dialog.dismiss()
+                useDefaultLocation()
+            }
+            .show()
+    }
+
+    private fun showPermissionDeniedDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("Permiso Denegado")
+            .setMessage("Sin acceso a la ubicación, la app mostrará una ubicación predeterminada. Puedes habilitar el permiso desde Configuración.")
+            .setPositiveButton("Entendido") { dialog, _ ->
+                dialog.dismiss()
+                useDefaultLocation()
+            }
+            .show()
     }
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
@@ -142,27 +280,11 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         return super.onOptionsItemSelected(item)
     }
 
-    private fun requestLocationPermission() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            Log.d(TAG, "Solicitando permiso de ubicación")
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), LOCATION_PERMISSION_REQUEST_CODE)
-        } else {
-            Log.d(TAG, "Permiso de ubicación ya concedido")
-        }
-    }
-
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == LOCATION_PERMISSION_REQUEST_CODE) {
-            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                Log.d(TAG, "Permiso de ubicación concedido - Habilitando mi ubicación")
-                viewModel.onLocationPermissionGranted()
-                // Habilita en mapa si ya cargó
-                googleMap?.isMyLocationEnabled = true
-            } else {
-                Log.w(TAG, "Permiso de ubicación denegado")
-                Toast.makeText(this, "Permiso de ubicación requerido para el mapa", Toast.LENGTH_SHORT).show()
-            }
+    override fun onResume() {
+        super.onResume()
+        // Verificar permisos al volver a la actividad
+        if (hasLocationPermission() && googleMap != null) {
+            enableMyLocation()
         }
     }
 }
