@@ -5,6 +5,7 @@ import com.example.roomuttt.data.repository.AuthRepository
 import com.example.roomuttt.domain.usecase.LoginWithEmailPasswordUseCase
 import com.example.roomuttt.domain.usecase.LoginWithGoogleUseCase
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -16,7 +17,10 @@ import dagger.hilt.android.scopes.ViewModelScoped
 object AuthModule {
     @Provides
     @ViewModelScoped
-    fun provideAuthRemoteDataSource(auth: FirebaseAuth): AuthRemoteDataSource = AuthRemoteDataSource(auth)
+    fun provideAuthRemoteDataSource(
+        auth: FirebaseAuth,
+        firestore: FirebaseFirestore
+    ): AuthRemoteDataSource = AuthRemoteDataSource(auth, firestore)
 
     @Provides
     @ViewModelScoped
@@ -29,4 +33,7 @@ object AuthModule {
     @Provides
     @ViewModelScoped
     fun provideLoginWithEmailPasswordUseCase(repo: AuthRepository): LoginWithEmailPasswordUseCase = LoginWithEmailPasswordUseCase(repo)
+
+
+
 }

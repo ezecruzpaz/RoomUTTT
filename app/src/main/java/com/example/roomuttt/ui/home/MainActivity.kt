@@ -1,6 +1,7 @@
 package com.example.roomuttt.ui.home
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Location
 import android.os.Bundle
@@ -19,6 +20,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.example.roomuttt.R
 import com.example.roomuttt.ui.home.viewmodel.MainViewModel
+import com.example.roomuttt.ui.profile.ProfileActivity  // ← Importa ProfileActivity
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.CameraUpdateFactory
@@ -115,9 +117,10 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             }
         })
 
-        // Icono de Perfil
+        // Icono de Perfil - ABRE PROFILEACTIVITY
         ivProfile.setOnClickListener {
-            Toast.makeText(this, "Ir a Perfil", Toast.LENGTH_SHORT).show()
+            val intent = Intent(this, ProfileActivity::class.java)
+            startActivity(intent)
         }
 
         // Icono de Notificaciones
@@ -159,6 +162,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         if (hasLocationPermission()) {
             enableMyLocation()
             getCurrentLocation()
+        } else {
+            Log.w(TAG, "Permiso de ubicación no concedido - No se habilita 'mi ubicación'")
         }
     }
 
@@ -170,11 +175,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 getCurrentLocation()
             }
             shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_FINE_LOCATION) -> {
-                // Mostrar explicación de por qué necesitamos el permiso
                 showPermissionRationaleDialog()
             }
             else -> {
-                // Solicitar permiso directamente
                 locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
             }
         }
@@ -199,6 +202,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             Log.d(TAG, "Ubicación habilitada en mapa")
         } catch (e: SecurityException) {
             Log.e(TAG, "Error al habilitar ubicación: ${e.message}")
+            Toast.makeText(this, "Error al habilitar ubicación", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -232,11 +236,11 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     private fun useDefaultLocation() {
-        // Ubicación predeterminada (puedes cambiarla a la ubicación de tu universidad)
-        val defaultLocation = LatLng(20.0910, -98.7624) // Tula de Allende, Hidalgo
+        val defaultLocation = LatLng(20.0910, -98.7624)
         googleMap?.animateCamera(
             CameraUpdateFactory.newLatLngZoom(defaultLocation, 12f)
         )
+        Log.d(TAG, "Usando ubicación predeterminada: UTTT")
         Toast.makeText(this, "Usando ubicación predeterminada", Toast.LENGTH_SHORT).show()
     }
 
@@ -282,7 +286,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     override fun onResume() {
         super.onResume()
-        // Verificar permisos al volver a la actividad
         if (hasLocationPermission() && googleMap != null) {
             enableMyLocation()
         }

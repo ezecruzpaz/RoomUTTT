@@ -47,6 +47,13 @@
             android:parentActivityName=".ui.auth.LoginActivity"
             android:theme="@style/Theme.RoomUTTT" />
 
+        <!-- Actividad de Perfil -->
+        <activity
+            android:name=".ui.profile.ProfileActivity"
+            android:exported="false"
+            android:theme="@style/Theme.RoomUTTT" />
+
+
         <!-- API Key de Google Maps -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"

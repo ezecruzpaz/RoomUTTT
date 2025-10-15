@@ -40,7 +40,6 @@ android {
         compose = true
     }
 
-    // Añade esta configuración para evitar conflictos
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -67,7 +66,7 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 
-    // Hilt - Versiones compatibles
+    // Hilt
     implementation("com.google.dagger:hilt-android:2.51.1")
     kapt("com.google.dagger:hilt-android-compiler:2.51.1")
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
@@ -80,21 +79,20 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.8.6")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.6")
 
-    // Firebase
+    // Firebase - usa BOM para gestionar versiones automáticamente
     implementation(platform("com.google.firebase:firebase-bom:33.4.0"))
     implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.firebase:firebase-firestore")
 
     // Google Sign-In
     implementation("com.google.android.gms:play-services-auth:21.2.0")
-
     implementation("com.google.android.gms:play-services-maps:18.2.0")
-    implementation("com.google.android.gms:play-services-location:21.0.1")  // Para ubicación
+    implementation("com.google.android.gms:play-services-location:21.0.1")
 
+    // Material Design
+    implementation("com.google.android.material:material:1.11.0")
+    implementation("androidx.compose.material:material-icons-extended:1.5.4")
 
-
-    implementation ("com.google.android.material:material:1.11.0")  // Versión reciente
-
-    implementation ("androidx.compose.material:material-icons-extended:1.5.4")
-
-    implementation ("com.google.android.material:material:1.9.0")
+    // CardView para el perfil
+    implementation("androidx.cardview:cardview:1.0.0")
 }

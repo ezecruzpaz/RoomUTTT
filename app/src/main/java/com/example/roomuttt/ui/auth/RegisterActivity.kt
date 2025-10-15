@@ -50,6 +50,7 @@ class RegisterActivity : AppCompatActivity() {
 
         // Botón de registro
         btnRegister.setOnClickListener {
+
             val email = etEmail.text.toString().trim()
             val fullName = etFullName.text.toString().trim()
             val password = etPassword.text.toString().trim()
@@ -63,6 +64,7 @@ class RegisterActivity : AppCompatActivity() {
 
             // Llama al ViewModel
             viewModel.registerUser(email, fullName, password)
+
         }
 
         // Observa estado del ViewModel
