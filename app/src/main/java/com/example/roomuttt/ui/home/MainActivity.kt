@@ -20,7 +20,8 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.example.roomuttt.R
 import com.example.roomuttt.ui.home.viewmodel.MainViewModel
-import com.example.roomuttt.ui.profile.ProfileActivity  // ← Importa ProfileActivity
+import com.example.roomuttt.ui.profile.ProfileActivity
+import com.example.roomuttt.ui.room.CreateRoomActivity  // ← Agrega este import
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.CameraUpdateFactory
@@ -28,6 +29,7 @@ import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.material.bottomnavigation.BottomNavigationView  // ← Agrega este import
 import com.google.android.material.card.MaterialCardView
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -43,12 +45,12 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var tvRoomTitle: TextView
     private lateinit var tvCapacity: TextView
     private lateinit var btnReserve: TextView
+    private lateinit var bottomNavigation: BottomNavigationView  // ← Agrega esta línea
     private var googleMap: GoogleMap? = null
     private lateinit var fusedLocationClient: FusedLocationProviderClient
 
     private val TAG = "MainActivity"
 
-    // Launcher moderno para permisos de ubicación
     private val locationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
@@ -68,27 +70,19 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         Log.d(TAG, "onCreate iniciado")
 
-        // Inicializar cliente de ubicación
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
-        // Inicializar vistas
         initViews()
-
-        // Configurar listeners
         setupListeners()
 
-        // Inicializar mapa
         val mapFragment = supportFragmentManager.findFragmentById(R.id.map_fragment) as SupportMapFragment
         mapFragment.getMapAsync(this)
 
-        // Observa datos del ViewModel
         observeViewModel()
-
-        // Carga inicial de cuartos
         viewModel.loadRooms()
-
-        // Solicitar permisos de ubicación
         checkAndRequestLocationPermission()
+
+        setupBottomNavigation()  // ← Agrega esta línea
     }
 
     private fun initViews() {
@@ -99,14 +93,13 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         tvRoomTitle = findViewById(R.id.tv_room_title)
         tvCapacity = findViewById(R.id.tv_capacity)
         btnReserve = findViewById(R.id.btn_reserve)
+        bottomNavigation = findViewById(R.id.bottom_navigation)  // ← Agrega esta línea
 
-        // Configurar Toolbar
         supportActionBar?.title = "Inicio"
         supportActionBar?.setDisplayHomeAsUpEnabled(false)
     }
 
     private fun setupListeners() {
-        // Configurar SearchView
         searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
             override fun onQueryTextSubmit(query: String?): Boolean {
                 viewModel.searchRooms(query ?: "")
@@ -117,20 +110,48 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             }
         })
 
-        // Icono de Perfil - ABRE PROFILEACTIVITY
         ivProfile.setOnClickListener {
             val intent = Intent(this, ProfileActivity::class.java)
             startActivity(intent)
         }
 
-        // Icono de Notificaciones
         ivNotifications.setOnClickListener {
             Toast.makeText(this, "Ver Notificaciones", Toast.LENGTH_SHORT).show()
         }
 
-        // Botón Reservar
         btnReserve.setOnClickListener {
             Toast.makeText(this, "Reservar Sala", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // ← AGREGA ESTE MÉTODO COMPLETO
+    private fun setupBottomNavigation() {
+        bottomNavigation.setOnItemSelectedListener { item ->
+            when (item.itemId) {
+                R.id.nav_home -> {
+                    // Ya estás en MainActivity
+                    true
+                }
+                R.id.nav_rooms -> {
+                    // Abrir CreateRoomActivity
+                    val intent = Intent(this, CreateRoomActivity::class.java)
+                    startActivity(intent)
+                    true
+                }
+                R.id.nav_reservations -> {
+                    Toast.makeText(this, "Reservas próximamente", Toast.LENGTH_SHORT).show()
+                    true
+                }
+                R.id.nav_map -> {
+                    Toast.makeText(this, "Mapa próximamente", Toast.LENGTH_SHORT).show()
+                    true
+                }
+                R.id.nav_chat -> {
+                    Toast.makeText(this, "Chat próximamente", Toast.LENGTH_SHORT).show()
+                    true
+                }
+                else -> false
+            }
         }
     }
 
@@ -151,14 +172,12 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         this.googleMap = googleMap
         viewModel.initMap(googleMap)
 
-        // Configurar controles del mapa
         googleMap.uiSettings.apply {
             isZoomControlsEnabled = true
             isMyLocationButtonEnabled = true
             isCompassEnabled = true
         }
 
-        // Habilitar ubicación si ya tenemos permiso
         if (hasLocationPermission()) {
             enableMyLocation()
             getCurrentLocation()

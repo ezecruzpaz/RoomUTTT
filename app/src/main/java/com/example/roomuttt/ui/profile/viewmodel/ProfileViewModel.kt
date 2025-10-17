@@ -1,5 +1,7 @@
 package com.example.roomuttt.ui.profile.viewmodel
 
+import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.roomuttt.data.repository.AuthRepository
@@ -37,6 +39,19 @@ class ProfileViewModel @Inject constructor(
     fun deleteProfile() {
         viewModelScope.launch {
             repository.deleteCurrentUser()
+        }
+    }
+    fun uploadProfilePhoto(imageUri: Uri) {
+        viewModelScope.launch {
+            val userId = repository.getCurrentUserFromAuth()?.uid ?: return@launch
+            val result = repository.uploadProfilePhoto(userId, imageUri)
+
+            if (result.isSuccess) {
+                Log.d("ProfileViewModel", "Foto subida exitosamente")
+                getUserProfile() // Recargar perfil
+            } else {
+                Log.e("ProfileViewModel", "Error subiendo foto: ${result.exceptionOrNull()?.message}")
+            }
         }
     }
 }

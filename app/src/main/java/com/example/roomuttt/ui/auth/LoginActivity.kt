@@ -8,7 +8,6 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.TextView
-import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
@@ -16,27 +15,27 @@ import com.example.roomuttt.R
 import com.example.roomuttt.ui.auth.viewmodel.LoginViewModel
 import com.example.roomuttt.ui.home.MainActivity
 import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
+import cn.pedant.SweetAlert.SweetAlertDialog
 
 @AndroidEntryPoint
 class LoginActivity : AppCompatActivity() {
 
     private val viewModel: LoginViewModel by viewModels()
     private lateinit var googleSignInClient: GoogleSignInClient
-    private lateinit var auth: FirebaseAuth  // Para email/password
+    private lateinit var auth: FirebaseAuth
     private val RC_SIGN_IN = 9001
     private val TAG = "LoginActivity"
 
-    // Vistas para email/password
     private lateinit var etEmail: EditText
     private lateinit var etPassword: EditText
     private lateinit var btnLogin: Button
+    private var progressDialog: SweetAlertDialog? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -44,9 +43,9 @@ class LoginActivity : AppCompatActivity() {
 
         Log.d(TAG, "onCreate iniciado")
 
-        auth = FirebaseAuth.getInstance()  // Inicializa Firebase Auth
+        auth = FirebaseAuth.getInstance()
 
-        // Inicializar vistas para email/password
+        // Inicializar vistas
         etEmail = findViewById(R.id.et_email)
         etPassword = findViewById(R.id.et_password)
         btnLogin = findViewById(R.id.btn_login)
@@ -58,11 +57,12 @@ class LoginActivity : AppCompatActivity() {
             .build()
         googleSignInClient = GoogleSignIn.getClient(this, gso)
 
-        // Botón de Google (con signOut para forzar selector de cuenta)
+        // Botón de Google
         val btnGoogleLogin = findViewById<ImageView>(R.id.btn_google_login)
         btnGoogleLogin.setOnClickListener {
             Log.d(TAG, "Botón Google clicado - Cerrando sesión anterior para forzar selector")
-            googleSignInClient.signOut().addOnCompleteListener {  // Fuerza selector cada vez
+            showProgressDialog("Iniciando sesión con Google...")
+            googleSignInClient.signOut().addOnCompleteListener {
                 startActivityForResult(googleSignInClient.signInIntent, RC_SIGN_IN)
             }
         }
@@ -72,17 +72,13 @@ class LoginActivity : AppCompatActivity() {
             val email = etEmail.text.toString().trim()
             val password = etPassword.text.toString().trim()
 
-            // Validación básica
-            if (TextUtils.isEmpty(email) || !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-                etEmail.error = "Email inválido"
-                return@setOnClickListener
-            }
-            if (password.length < 6) {
-                etPassword.error = "Contraseña debe tener al menos 6 caracteres"
+            // Validación
+            if (!validateLoginInput(email, password)) {
                 return@setOnClickListener
             }
 
             Log.d(TAG, "Iniciando login con email: $email")
+            showProgressDialog("Iniciando sesión...")
             viewModel.loginWithEmailPassword(email, password)
         }
 
@@ -96,20 +92,146 @@ class LoginActivity : AppCompatActivity() {
         lifecycleScope.launch {
             viewModel.loginState.collect { result ->
                 Log.d(TAG, "loginState emitido: $result")
-                result?.let {  // Verifica nulo
+                result?.let {
+                    dismissProgressDialog()
+
                     if (it.isSuccess == true) {
                         Log.d(TAG, "Login exitoso - Navegando a MainActivity")
-                        Toast.makeText(this@LoginActivity, "Login exitoso", Toast.LENGTH_SHORT).show()
-                        startActivity(Intent(this@LoginActivity, MainActivity::class.java))
-                        finish()
+                        showSuccessDialog(
+                            title = "¡Bienvenido!",
+                            message = "Inicio de sesión exitoso"
+                        ) {
+                            startActivity(Intent(this@LoginActivity, MainActivity::class.java))
+                            finish()
+                        }
                     } else if (it.isFailure == true) {
                         Log.e(TAG, "Login falló: ${it.exceptionOrNull()?.message}")
-                        val errorMsg = it.exceptionOrNull()?.message ?: "Error desconocido"
-                        Toast.makeText(this@LoginActivity, "Error: $errorMsg", Toast.LENGTH_SHORT).show()
+                        val errorMsg = getErrorMessage(it.exceptionOrNull()?.message)
+                        showErrorDialog("Error de inicio de sesión", errorMsg)
                     }
                 }
             }
         }
+    }
+
+    private fun validateLoginInput(email: String, password: String): Boolean {
+        if (TextUtils.isEmpty(email)) {
+            etEmail.error = "El email es requerido"
+            etEmail.requestFocus()
+            showWarningDialog("Campo requerido", "Por favor ingresa tu email")
+            return false
+        }
+
+        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            etEmail.error = "Email inválido"
+            etEmail.requestFocus()
+            showWarningDialog("Email inválido", "Por favor ingresa un email válido")
+            return false
+        }
+
+        if (TextUtils.isEmpty(password)) {
+            etPassword.error = "La contraseña es requerida"
+            etPassword.requestFocus()
+            showWarningDialog("Campo requerido", "Por favor ingresa tu contraseña")
+            return false
+        }
+
+        if (password.length < 6) {
+            etPassword.error = "Contraseña debe tener al menos 6 caracteres"
+            etPassword.requestFocus()
+            showWarningDialog(
+                "Contraseña muy corta",
+                "La contraseña debe tener al menos 6 caracteres"
+            )
+            return false
+        }
+
+        return true
+    }
+
+    private fun getErrorMessage(error: String?): String {
+        return when {
+            // Errores de credenciales
+            error?.contains("credential is incorrect", ignoreCase = true) == true ||
+                    error?.contains("malformed", ignoreCase = true) == true ||
+                    error?.contains("has expired", ignoreCase = true) == true ->
+                "Email o contraseña incorrectos. Por favor verifica tus datos"
+
+            error?.contains("INVALID_LOGIN_CREDENTIALS", ignoreCase = true) == true ||
+                    error?.contains("invalid-credential", ignoreCase = true) == true ->
+                "Credenciales inválidas. Verifica tu email y contraseña"
+
+            error?.contains("wrong-password", ignoreCase = true) == true ||
+                    error?.contains("password", ignoreCase = true) == true ->
+                "La contraseña es incorrecta"
+
+            error?.contains("user-not-found", ignoreCase = true) == true ||
+                    error?.contains("user", ignoreCase = true) == true ->
+                "No existe una cuenta con este email"
+
+            error?.contains("invalid-email", ignoreCase = true) == true ||
+                    error?.contains("email", ignoreCase = true) == true ->
+                "El formato del email no es válido"
+
+            error?.contains("user-disabled", ignoreCase = true) == true ->
+                "Esta cuenta ha sido deshabilitada"
+
+            error?.contains("too-many-requests", ignoreCase = true) == true ->
+                "Demasiados intentos fallidos. Intenta más tarde"
+
+            // Errores de red
+            error?.contains("network", ignoreCase = true) == true ||
+                    error?.contains("connection", ignoreCase = true) == true ->
+                "Sin conexión a internet. Verifica tu red"
+
+            error?.contains("timeout", ignoreCase = true) == true ->
+                "La conexión tardó demasiado. Intenta nuevamente"
+
+            else -> "No se pudo iniciar sesión. Verifica tus datos e intenta nuevamente"
+        }
+    }
+
+    private fun showProgressDialog(message: String) {
+        progressDialog = SweetAlertDialog(this, SweetAlertDialog.PROGRESS_TYPE).apply {
+            progressHelper.barColor = android.graphics.Color.parseColor("#A5DC86")
+            titleText = "Cargando"
+            contentText = message
+            setCancelable(false)
+            show()
+        }
+    }
+
+    private fun dismissProgressDialog() {
+        progressDialog?.dismiss()
+        progressDialog = null
+    }
+
+    private fun showSuccessDialog(title: String, message: String, onConfirm: () -> Unit) {
+        SweetAlertDialog(this, SweetAlertDialog.SUCCESS_TYPE)
+            .setTitleText(title)
+            .setContentText(message)
+            .setConfirmText("Continuar")
+            .setConfirmClickListener {
+                it.dismiss()
+                onConfirm()
+            }
+            .show()
+    }
+
+    private fun showErrorDialog(title: String, message: String) {
+        SweetAlertDialog(this, SweetAlertDialog.ERROR_TYPE)
+            .setTitleText(title)
+            .setContentText(message)
+            .setConfirmText("Entendido")
+            .show()
+    }
+
+    private fun showWarningDialog(title: String, message: String) {
+        SweetAlertDialog(this, SweetAlertDialog.WARNING_TYPE)
+            .setTitleText(title)
+            .setContentText(message)
+            .setConfirmText("OK")
+            .show()
     }
 
     @Deprecated("Deprecated in Java")
@@ -124,9 +246,18 @@ class LoginActivity : AppCompatActivity() {
                 Log.d(TAG, "Cuenta Google obtenida: ${account.email}")
                 viewModel.loginWithGoogle(account)
             } catch (e: ApiException) {
+                dismissProgressDialog()
                 Log.e(TAG, "Error en Google Sign-In: ${e.statusCode} - ${e.message}")
-                Toast.makeText(this, "Error en Google: ${e.message}", Toast.LENGTH_SHORT).show()
+                showErrorDialog(
+                    "Error de autenticación",
+                    "No se pudo iniciar sesión con Google. Intenta nuevamente"
+                )
             }
         }
+    }
+
+    override fun onDestroy() {
+        dismissProgressDialog()
+        super.onDestroy()
     }
 }

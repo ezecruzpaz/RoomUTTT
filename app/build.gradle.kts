@@ -83,6 +83,7 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:33.4.0"))
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-firestore")
+    implementation("com.google.firebase:firebase-storage")
 
     // Google Sign-In
     implementation("com.google.android.gms:play-services-auth:21.2.0")
@@ -92,6 +93,21 @@ dependencies {
     // Material Design
     implementation("com.google.android.material:material:1.11.0")
     implementation("androidx.compose.material:material-icons-extended:1.5.4")
+
+    // Glide para cargar imágenes
+    implementation("com.github.bumptech.glide:glide:4.16.0")
+    annotationProcessor("com.github.bumptech.glide:compiler:4.16.0")
+
+    // HTTP Client para API (Retrofit + OkHttp)
+    implementation("com.squareup.retrofit2:retrofit:2.11.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
+    implementation("com.squareup.okhttp3:okhttp:4.11.0")  // ← AGREGADA
+    implementation("com.squareup.okhttp3:logging-interceptor:4.11.0")
+    // ❌ ELIMINADA: implementation("com.squareup.okhttp3:multipart:4.12.0")
+
+
+    implementation ("com.github.f0ris.sweetalert:library:1.6.2")
+
 
     // CardView para el perfil
     implementation("androidx.cardview:cardview:1.0.0")

@@ -58,33 +58,50 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="32dp">
+            android:padding="32dp"
+            android:gravity="center_horizontal">
 
-            <!-- Foto de Perfil con forma circular -->
-            <androidx.cardview.widget.CardView
+            <!-- Foto de Perfil con forma circular y botón para cambiar -->
+            <FrameLayout
                 android:layout_width="140dp"
                 android:layout_height="140dp"
-                android:layout_gravity="center"
-                android:layout_marginBottom="24dp"
-                app:cardCornerRadius="70dp"
-                app:cardElevation="4dp">
+                android:layout_marginBottom="24dp">
 
-                <ImageView
-                    android:id="@+id/iv_profile_photo"
+                <androidx.cardview.widget.CardView
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:src="@drawable/ic_profile_placeholder"
-                    android:scaleType="centerCrop" />
+                    app:cardCornerRadius="70dp"
+                    app:cardElevation="4dp">
 
-            </androidx.cardview.widget.CardView>
+                    <ImageView
+                        android:id="@+id/iv_profile_photo"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:src="@drawable/ic_profile_placeholder"
+                        android:scaleType="centerCrop" />
+
+                </androidx.cardview.widget.CardView>
+
+                <!-- Botón flotante para cambiar foto -->
+                <com.google.android.material.floatingactionbutton.FloatingActionButton
+                    android:id="@+id/fab_change_photo"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="bottom|end"
+                    android:src="@drawable/ic_camera"
+                    app:fabSize="mini"
+                    app:backgroundTint="@color/black"
+                    app:tint="@color/white"
+                    android:contentDescription="Cambiar foto" />
+
+            </FrameLayout>
 
             <!-- Nombre -->
             <TextView
                 android:id="@+id/tv_name"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:layout_marginBottom="8dp"
+                android:layout_marginBottom="24dp"
                 android:text="Cargando..."
                 android:textColor="@color/black"
                 android:textSize="24sp"
@@ -94,7 +111,6 @@
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_gravity="center"
                 android:layout_marginBottom="32dp"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
@@ -121,45 +137,48 @@
             <!-- Botones -->
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="50dp"
                 android:orientation="horizontal"
-                android:layout_marginBottom="16dp">
+                android:layout_marginBottom="16dp"
+                android:gravity="center_vertical">
 
-                <Button
+                <androidx.appcompat.widget.AppCompatButton
                     android:id="@+id/btn_edit"
                     android:layout_width="0dp"
-                    android:layout_height="50dp"
+                    android:layout_height="match_parent"
                     android:layout_weight="1"
                     android:layout_marginEnd="8dp"
-                    android:background="@drawable/button_secondary"
+                    android:background="@drawable/button_gray"
                     android:text="Editar"
                     android:textColor="@color/black"
                     android:textSize="14sp"
-                    android:textAllCaps="false" />
+                    android:textAllCaps="false"
+                    android:padding="0dp" />
 
-                <Button
+                <androidx.appcompat.widget.AppCompatButton
                     android:id="@+id/btn_create_renter"
                     android:layout_width="0dp"
-                    android:layout_height="50dp"
+                    android:layout_height="match_parent"
                     android:layout_weight="1"
                     android:layout_marginStart="8dp"
-                    android:background="@drawable/button_secondary"
+                    android:background="@drawable/button_gray"
                     android:text="Crear cuenta de arrendatario"
                     android:textColor="@color/black"
-                    android:textSize="12sp"
-                    android:textAllCaps="false" />
+                    android:textSize="10sp"
+                    android:textAllCaps="false"
+                    android:padding="8dp"
+                    android:lineSpacingMultiplier="0.9" />
 
             </LinearLayout>
 
             <!-- Botón Eliminar con borde rojo -->
-            <Button
+            <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/btn_delete_profile"
                 android:layout_width="wrap_content"
-                android:layout_height="50dp"
-                android:layout_gravity="center"
+                android:layout_height="48dp"
                 android:paddingStart="32dp"
                 android:paddingEnd="32dp"
-                android:background="@drawable/button_danger_outline"
+                android:background="@drawable/button_danger_outline2"
                 android:text="Eliminar Perfil"
                 android:textColor="#D32F2F"
                 android:textStyle="bold"
