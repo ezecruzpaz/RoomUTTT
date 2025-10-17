@@ -1,5 +1,6 @@
 package com.example.roomuttt.data.repository
 
+import android.net.Uri
 import com.example.roomuttt.data.remote.AuthRemoteDataSource
 import com.example.roomuttt.domain.model.User
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
@@ -32,5 +33,8 @@ class AuthRepository @Inject constructor(
 
     suspend fun deleteCurrentUser() {
         remote.deleteUser()
+    }
+    suspend fun uploadProfilePhoto(userId: String, imageUri: Uri): Result<String> {
+        return remote.uploadProfilePhoto(userId, imageUri)
     }
 }

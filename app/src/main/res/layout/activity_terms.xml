@@ -1,0 +1,365 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/white">
+
+    <!-- Header con flecha de regreso y título -->
+    <LinearLayout
+        android:id="@+id/header"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:gravity="center_vertical"
+        android:background="@android:color/white"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <!-- Botón de regreso -->
+        <ImageButton
+            android:id="@+id/btn_back"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Regresar"
+            android:src="@drawable/ic_arrow_back"
+            app:tint="@android:color/black" />
+
+        <!-- Título centrado -->
+        <TextView
+            android:id="@+id/tv_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Políticas de Uso"
+            android:textColor="@android:color/black"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:layout_marginEnd="40dp" />
+
+    </LinearLayout>
+
+    <!-- Línea divisora sutil -->
+    <View
+        android:id="@+id/divider"
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#E0E0E0"
+        app:layout_constraintTop_toBottomOf="@id/header" />
+
+    <!-- ScrollView con el contenido de las políticas -->
+    <ScrollView
+        android:id="@+id/scroll_content"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:fillViewport="true"
+        app:layout_constraintTop_toBottomOf="@id/divider"
+        app:layout_constraintBottom_toTopOf="@id/btn_accept">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="24dp">
+
+            <!-- Sección 1: Información Pública -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="1. Información Pública del Usuario"
+                android:textColor="@android:color/black"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Al registrarte y utilizar nuestra plataforma, aceptas que la información que proporciones —incluyendo nombre, fotografía de perfil, descripción del cuarto en renta, ubicación aproximada y disponibilidad— será almacenada y podrá ser visible públicamente para otros usuarios con el fin de facilitar el proceso de búsqueda y renta de habitaciones."
+                android:textColor="#424242"
+                android:textSize="14sp"
+                android:lineSpacingExtra="4dp"
+                android:layout_marginBottom="24dp" />
+
+            <!-- Sección 2: Permisos de Cámara -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="2. Permisos de Cámara y Almacenamiento"
+                android:textColor="@android:color/black"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Para mejorar la experiencia de uso y permitir la publicación de imágenes de los cuartos, la aplicación solicitará acceso a la cámara y al almacenamiento de tu dispositivo. Estos permisos son necesarios para:"
+                android:textColor="#424242"
+                android:textSize="14sp"
+                android:lineSpacingExtra="4dp"
+                android:layout_marginBottom="12dp" />
+
+            <!-- Viñetas -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginStart="16dp"
+                android:layout_marginBottom="12dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="• Capturar fotografías directamente desde la app."
+                    android:textColor="#424242"
+                    android:textSize="14sp"
+                    android:lineSpacingExtra="4dp"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="• Seleccionar imágenes guardadas en tu dispositivo para subirlas a tu perfil o publicaciones."
+                    android:textColor="#424242"
+                    android:textSize="14sp"
+                    android:lineSpacingExtra="4dp"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="• Almacenar temporalmente contenido visual relacionado con tus publicaciones."
+                    android:textColor="#424242"
+                    android:textSize="14sp"
+                    android:lineSpacingExtra="4dp" />
+
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="El uso de estos permisos está limitado exclusivamente a funciones dentro de la plataforma y no se utilizará para fines externos ni sin tu consentimiento."
+                android:textColor="#424242"
+                android:textSize="14sp"
+                android:lineSpacingExtra="4dp"
+                android:layout_marginBottom="24dp" />
+
+            <!-- Sección 3: Uso de Datos -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="3. Uso de Datos"
+                android:textColor="@android:color/black"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="La aplicación recopila datos para mejorar el servicio, como ubicación aproximada para mostrar cuartos cercanos. No compartimos datos personales con terceros sin tu consentimiento expreso."
+                android:textColor="#424242"
+                android:textSize="14sp"
+                android:lineSpacingExtra="4dp"
+                android:layout_marginBottom="24dp" />
+
+            <!-- Sección 4: Responsabilidad del Usuario -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="4. Responsabilidad del Usuario"
+                android:textColor="@android:color/black"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Como usuario de RoomU, te comprometes a:"
+                android:textColor="#424242"
+                android:textSize="14sp"
+                android:lineSpacingExtra="4dp"
+                android:layout_marginBottom="12dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginStart="16dp"
+                android:layout_marginBottom="12dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="• Proporcionar información veraz y actualizada sobre los cuartos en renta."
+                    android:textColor="#424242"
+                    android:textSize="14sp"
+                    android:lineSpacingExtra="4dp"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="• No publicar contenido ofensivo, discriminatorio o que viole los derechos de terceros."
+                    android:textColor="#424242"
+                    android:textSize="14sp"
+                    android:lineSpacingExtra="4dp"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="• Respetar la privacidad y seguridad de otros usuarios."
+                    android:textColor="#424242"
+                    android:textSize="14sp"
+                    android:lineSpacingExtra="4dp"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="• No utilizar la plataforma para actividades fraudulentas o ilegales."
+                    android:textColor="#424242"
+                    android:textSize="14sp"
+                    android:lineSpacingExtra="4dp" />
+
+            </LinearLayout>
+
+            <!-- Sección 5: Comunicación y Notificaciones -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="5. Comunicación y Notificaciones"
+                android:textColor="@android:color/black"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Al utilizar RoomU, aceptas recibir notificaciones relacionadas con tu actividad en la plataforma, incluyendo mensajes de otros usuarios, actualizaciones de publicaciones y avisos importantes del servicio. Puedes gestionar tus preferencias de notificación desde la configuración de la aplicación."
+                android:textColor="#424242"
+                android:textSize="14sp"
+                android:lineSpacingExtra="4dp"
+                android:layout_marginBottom="24dp" />
+
+            <!-- Sección 6: Seguridad de la Cuenta -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="6. Seguridad de la Cuenta"
+                android:textColor="@android:color/black"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Eres responsable de mantener la confidencialidad de tus credenciales de acceso. Cualquier actividad realizada desde tu cuenta será considerada como realizada por ti. Notifica inmediatamente cualquier uso no autorizado de tu cuenta."
+                android:textColor="#424242"
+                android:textSize="14sp"
+                android:lineSpacingExtra="4dp"
+                android:layout_marginBottom="24dp" />
+
+            <!-- Sección 7: Propiedad Intelectual -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="7. Propiedad Intelectual"
+                android:textColor="@android:color/black"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Todo el contenido que publiques en la plataforma (fotografías, descripciones, etc.) permanece como tu propiedad. Sin embargo, otorgas a RoomU una licencia no exclusiva para usar, mostrar y distribuir dicho contenido dentro de la plataforma con el fin de facilitar el servicio."
+                android:textColor="#424242"
+                android:textSize="14sp"
+                android:lineSpacingExtra="4dp"
+                android:layout_marginBottom="24dp" />
+
+            <!-- Sección 8: Modificaciones de las Políticas -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="8. Modificaciones de las Políticas"
+                android:textColor="@android:color/black"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="RoomU se reserva el derecho de modificar estas políticas de uso en cualquier momento. Los cambios significativos serán notificados a través de la aplicación. El uso continuado de la plataforma después de dichas modificaciones constituye tu aceptación de las nuevas políticas."
+                android:textColor="#424242"
+                android:textSize="14sp"
+                android:lineSpacingExtra="4dp"
+                android:layout_marginBottom="24dp" />
+
+            <!-- Sección 9: Terminación del Servicio -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="9. Terminación del Servicio"
+                android:textColor="@android:color/black"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="RoomU se reserva el derecho de suspender o cancelar tu cuenta si se detecta un incumplimiento de estas políticas, actividades fraudulentas o cualquier comportamiento que ponga en riesgo la seguridad de la plataforma o de otros usuarios."
+                android:textColor="#424242"
+                android:textSize="14sp"
+                android:lineSpacingExtra="4dp"
+                android:layout_marginBottom="24dp" />
+
+            <!-- Sección 10: Contacto -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="10. Contacto"
+                android:textColor="@android:color/black"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Si tienes preguntas o inquietudes sobre estas políticas de uso, puedes contactarnos a través de la sección de ayuda en la aplicación o mediante el correo electrónico soporte@roomu.com"
+                android:textColor="#424242"
+                android:textSize="14sp"
+                android:lineSpacingExtra="4dp"
+                android:layout_marginBottom="24dp" />
+
+        </LinearLayout>
+
+    </ScrollView>
+
+    <!-- Botón para aceptar las políticas -->
+    <Button
+        android:id="@+id/btn_accept"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="24dp"
+        android:background="@drawable/button_background"
+        android:text="Aceptar Políticas"
+        android:textColor="@android:color/white"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:padding="16dp"
+        android:elevation="4dp"
+        app:layout_constraintBottom_toBottomOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

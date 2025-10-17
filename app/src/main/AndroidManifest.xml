@@ -6,11 +6,22 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- Permisos para galería y cámara -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <!-- Feature para cámara (opcional pero recomendado) -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
 
 
     <application
         android:name=".RoomUtttApplication"
         android:allowBackup="true"
+        android:usesCleartextTraffic="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
@@ -53,6 +64,17 @@
             android:exported="false"
             android:theme="@style/Theme.RoomUTTT" />
 
+        <!-- Actividad  Creacion Cuarto -->
+        <activity
+            android:name=".ui.room.CreateRoomActivity"
+            android:exported="false" />
+
+        <!-- Actividad Terminos y condiciones -->
+
+        <activity
+            android:name=".ui.terms.TermsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.RoomUTTT" />
 
         <!-- API Key de Google Maps -->
         <meta-data

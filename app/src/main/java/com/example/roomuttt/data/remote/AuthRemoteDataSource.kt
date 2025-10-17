@@ -1,11 +1,14 @@
 package com.example.roomuttt.data.remote
 
+import android.net.Uri
 import android.util.Log
 import com.example.roomuttt.domain.model.User
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.storage.FirebaseStorage  // ← Este es el importante
+
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
@@ -30,7 +33,6 @@ class AuthRemoteDataSource @Inject constructor(
                         "uid" to firebaseUser.uid,
                         "email" to firebaseUser.email,
                         "name" to (account.displayName ?: ""),
-                        "career" to "",
                         "photoUrl" to (account.photoUrl?.toString() ?: "")
                     )
                     userDoc.set(userData).await()
@@ -77,7 +79,6 @@ class AuthRemoteDataSource @Inject constructor(
                     "uid" to firebaseUser.uid,
                     "email" to email,
                     "name" to name,
-
                     "photoUrl" to ""
                 )
                 firestore.collection("users")
@@ -104,14 +105,17 @@ class AuthRemoteDataSource @Inject constructor(
                 .await()
 
             if (doc.exists()) {
+                val photoUrl = doc.getString("photoUrl")
+                Log.d("AuthRemoteDataSource", "photoUrl desde Firestore: $photoUrl")
+
                 User(
                     uid = firebaseUser.uid,
                     email = firebaseUser.email,
                     name = doc.getString("name"),
-
+                    photoUrl = photoUrl  // ← Asegúrate de que esta línea esté
                 )
             } else {
-                // Si no existe en Firestore, créalo con datos básicos
+                // Si no existe documento, créalo
                 val userData = hashMapOf(
                     "uid" to firebaseUser.uid,
                     "email" to firebaseUser.email,
@@ -122,19 +126,20 @@ class AuthRemoteDataSource @Inject constructor(
                     .document(firebaseUser.uid)
                     .set(userData)
                     .await()
-                Log.d("AuthRemoteDataSource", "Documento de usuario creado en Firestore")
 
                 User(
                     uid = firebaseUser.uid,
                     email = firebaseUser.email,
-                    name = firebaseUser.displayName
+                    name = firebaseUser.displayName,
+                    photoUrl = firebaseUser.photoUrl?.toString()
                 )
             }
         } catch (e: Exception) {
             Log.e("AuthRemoteDataSource", "Error obteniendo usuario: ${e.message}")
             User(
                 uid = firebaseUser.uid,
-                email = firebaseUser.email
+                email = firebaseUser.email,
+                photoUrl = firebaseUser.photoUrl?.toString()
             )
         }
     }
@@ -169,5 +174,35 @@ class AuthRemoteDataSource @Inject constructor(
         auth.currentUser?.delete()?.await()
 
         Log.d("AuthRemoteDataSource", "Usuario eliminado completamente")
+    }
+
+    suspend fun uploadProfilePhoto(userId: String, imageUri: Uri): Result<String> {
+        return try {
+            val storageRef = FirebaseStorage.getInstance().reference
+            // Cambia el path para que coincida con las reglas
+            val photoRef = storageRef.child("profile_photos/$userId")
+
+            Log.d("AuthRemoteDataSource", "Subiendo imagen para userId: $userId")
+
+            // Subir la imagen
+            val uploadTask = photoRef.putFile(imageUri).await()
+
+            // Obtener la URL de descarga
+            val downloadUrl = photoRef.downloadUrl.await().toString()
+
+            Log.d("AuthRemoteDataSource", "URL de descarga obtenida: $downloadUrl")
+
+            // Actualizar la URL en Firestore
+            firestore.collection("users")
+                .document(userId)
+                .update("photoUrl", downloadUrl)
+                .await()
+
+            Log.d("AuthRemoteDataSource", "Foto de perfil actualizada en Firestore")
+            Result.success(downloadUrl)
+        } catch (e: Exception) {
+            Log.e("AuthRemoteDataSource", "Error subiendo foto: ${e.message}", e)
+            Result.failure(e)
+        }
     }
 }
