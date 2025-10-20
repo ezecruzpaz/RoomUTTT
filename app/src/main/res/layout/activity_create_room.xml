@@ -28,14 +28,17 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="16dp"
-            android:hint="Nombre del Cuarto"
-            app:boxBackgroundMode="outline">
+            android:background="@drawable/input_background"
+            app:boxBackgroundMode="none"
+            app:hintTextColor="@color/darker_gray">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/et_nombre"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textColor="@color/black" />
+                android:padding="16dp"
+                android:textColor="@color/black"
+                android:hint="Nombre del Cuarto" />
 
         </com.google.android.material.textfield.TextInputLayout>
 
@@ -44,15 +47,18 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="16dp"
-            android:hint="Precio (MXN)"
-            app:boxBackgroundMode="outline">
+            android:background="@drawable/input_background"
+            app:boxBackgroundMode="none"
+            app:hintTextColor="@color/darker_gray">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/et_precio"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:padding="16dp"
                 android:inputType="numberDecimal"
-                android:textColor="@color/black" />
+                android:textColor="@color/black"
+                android:hint="Precio (MXN)" />
 
         </com.google.android.material.textfield.TextInputLayout>
 
@@ -61,16 +67,19 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="16dp"
-            android:hint="Descripción"
-            app:boxBackgroundMode="outline">
+            android:background="@drawable/input_background"
+            app:boxBackgroundMode="none"
+            app:hintTextColor="@color/darker_gray">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/et_descripcion"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:padding="16dp"
                 android:inputType="textMultiLine"
                 android:lines="3"
-                android:textColor="@color/black" />
+                android:textColor="@color/black"
+                android:hint="Descripción" />
 
         </com.google.android.material.textfield.TextInputLayout>
 
@@ -79,88 +88,143 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="16dp"
-            android:hint="Capacidad (personas)"
-            app:boxBackgroundMode="outline">
+            android:background="@drawable/input_background"
+            app:boxBackgroundMode="none"
+            app:hintTextColor="@color/darker_gray">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/et_capacidad"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:padding="16dp"
                 android:inputType="number"
-                android:textColor="@color/black" />
+                android:textColor="@color/black"
+                android:hint="Capacidad (personas)" />
 
         </com.google.android.material.textfield.TextInputLayout>
 
-        <!-- Servicios (Spinner) -->
+        <!-- Servicios -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginBottom="8dp"
-            android:text="Servicios:"
+            android:text="Servicios"
             android:textColor="@color/black"
             android:textSize="16sp"
             android:textStyle="bold" />
-
-        <Spinner
-            android:id="@+id/spinner_servicios"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
-            android:background="@drawable/spinner_background"
-            android:padding="12dp" />
-
-        <!-- Ubicación -->
-        <com.google.android.material.textfield.TextInputLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
-            android:hint="Ubicación"
-            app:boxBackgroundMode="outline">
-
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/et_ubicacion"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:textColor="@color/black" />
-
-        </com.google.android.material.textfield.TextInputLayout>
-
-        <!-- Imagen -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="8dp"
-            android:text="Imagen:"
-            android:textColor="@color/black"
-            android:textSize="16sp"
-            android:textStyle="bold" />
-
-        <androidx.appcompat.widget.AppCompatButton
-            android:id="@+id/btn_add_image"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="8dp"
-            android:background="@drawable/button_secondary"
-            android:text="Seleccionar Imagen"
-            android:textAllCaps="false"
-            android:textColor="@color/black" />
 
         <androidx.cardview.widget.CardView
             android:layout_width="match_parent"
-            android:layout_height="200dp"
+            android:layout_height="wrap_content"
             android:layout_marginBottom="16dp"
-            app:cardCornerRadius="8dp"
-            app:cardElevation="2dp">
+            app:cardCornerRadius="12dp"
+            app:cardElevation="2dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?android:attr/selectableItemBackground">
 
-            <ImageView
-                android:id="@+id/iv_preview"
+            <TextView
+                android:id="@+id/tv_servicios_seleccionados"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:scaleType="centerCrop"
-                android:background="#F5F5F5"
-                android:contentDescription="Vista previa de imagen" />
+                android:layout_height="wrap_content"
+                android:background="@color/service_background"
+                android:text="Seleccionar servicios"
+                android:textColor="@color/service_text"
+                android:textSize="16sp"
+                android:padding="16dp"
+                android:drawableEnd="@android:drawable/arrow_down_float"
+                android:drawablePadding="8dp" />
 
         </androidx.cardview.widget.CardView>
+
+        <!-- Ubicación -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:text="Ubicación"
+            android:textColor="@color/black"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <!-- Autocomplete de Google Places (NO se elimina) -->
+        <fragment
+            android:id="@+id/place_autocomplete_fragment"
+            android:name="com.google.android.libraries.places.widget.AutocompleteSupportFragment"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp" />
+
+        <!-- Mapa -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="250dp"
+            android:layout_marginBottom="16dp"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="4dp">
+
+            <fragment
+                android:id="@+id/map_fragment"
+                android:name="com.google.android.gms.maps.SupportMapFragment"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+
+        </androidx.cardview.widget.CardView>
+
+        <!-- Imágenes -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:text="Imágenes"
+            android:textColor="@color/black"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="250dp"
+            android:layout_marginBottom="8dp"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="4dp">
+
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <ImageView
+                    android:id="@+id/iv_preview"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scaleType="centerCrop"
+                    android:background="#F0F0F0"
+                    android:contentDescription="Vista previa de imagen" />
+
+                <com.google.android.material.floatingactionbutton.FloatingActionButton
+                    android:id="@+id/btn_add_image"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentEnd="true"
+                    android:layout_alignParentBottom="true"
+                    android:layout_margin="16dp"
+                    android:contentDescription="Agregar imagen"
+                    android:src="@android:drawable/ic_menu_camera"
+                    app:tint="@color/white"
+                    app:backgroundTint="@color/black" />
+
+            </RelativeLayout>
+
+        </androidx.cardview.widget.CardView>
+
+        <!-- Contador de imágenes -->
+        <TextView
+            android:id="@+id/tv_image_count"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:text="0 imagen(es) seleccionada(s)"
+            android:textColor="@color/darker_gray"
+            android:textSize="14sp" />
 
         <!-- Botón Crear -->
         <androidx.appcompat.widget.AppCompatButton
@@ -168,8 +232,8 @@
             android:layout_width="match_parent"
             android:layout_height="56dp"
             android:layout_marginTop="16dp"
-            android:background="@drawable/button_primary"
-            android:text="Crear Cuarto"
+            android:background="@drawable/button_black_rounded"
+            android:text="Crear Ahora"
             android:textAllCaps="false"
             android:textColor="@color/white"
             android:textSize="18sp"

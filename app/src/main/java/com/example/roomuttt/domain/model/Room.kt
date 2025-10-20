@@ -1,90 +1,78 @@
 package com.example.roomuttt.domain.model
 
 import android.net.Uri
-import com.google.gson.annotations.Expose
 import com.google.gson.annotations.SerializedName
 
-// DTO para crear cuarto (SIN imágenes)
+// DTO para crear cuarto - Orden alfabético para .NET
 data class CreateRoomDto(
-    @Expose
-    @SerializedName("Nombre")
-    val nombre: String,
-
-    @Expose
-    @SerializedName("Precio")
-    val precio: Double,
-
-    @Expose
-    @SerializedName("Descripcion")
-    val descripcion: String?,
-
-    @Expose
     @SerializedName("Capacidad")
     val capacidad: Int,
 
-    @Expose
+    @SerializedName("Descripcion")
+    val descripcion: String?,
+
     @SerializedName("Disponible")
     val disponible: Boolean = true,
 
-    @Expose
+    @SerializedName("Nombre")
+    val nombre: String,
+
+    @SerializedName("Precio")
+    val precio: Double,
+
     @SerializedName("Servicios")
     val servicios: List<String> = emptyList(),
 
-    @Expose
-    @SerializedName("UserId")
-    val userId: String,
-
-    @Expose
     @SerializedName("Ubicacion")
-    val ubicacion: String?
+    val ubicacion: String?,
+
+    @SerializedName("UserId")
+    val userId: String
 )
 
 // DTO completo con imágenes (para uso futuro)
 data class RoomDto(
-    @Expose
     @SerializedName("Nombre")
     val nombre: String,
 
-    @Expose
     @SerializedName("Precio")
     val precio: Double,
 
-    @Expose
     @SerializedName("Descripcion")
     val descripcion: String?,
 
-    @Expose
     @SerializedName("Capacidad")
     val capacidad: Int,
 
-    @Expose
     @SerializedName("Disponible")
     val disponible: Boolean = true,
 
-    @Expose
     @SerializedName("Servicios")
     val servicios: List<String> = emptyList(),
 
-    @Expose
     @SerializedName("UserId")
     val userId: String,
 
-    @Expose
     @SerializedName("Ubicacion")
     val ubicacion: String?,
 
-    // Sin @Expose para que NO se serialice (Uri no es compatible con JSON)
+    // Estos NO se serializan (sin @SerializedName los ignora Gson por defecto)
     val nuevasImagenes: List<Uri>? = null,
     val imagenesAEliminar: List<String>? = null
 )
 
-// Respuesta de la API
 data class RoomResponse(
-    @Expose
-    @SerializedName("Id")
-    val id: String?,
+    @SerializedName("result")
+    val result: RoomResult?,
 
-    @Expose
-    @SerializedName("Message")
+    @SerializedName("isSuccess")
+    val isSuccess: Boolean,
+
+    @SerializedName("message")
     val message: String?
+)
+
+data class RoomResult(
+    @SerializedName("id")
+    val id: String?
 )

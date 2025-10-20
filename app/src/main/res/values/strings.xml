@@ -2,6 +2,7 @@
     <string name="app_name">RoomUTTT</string>
     <string name="default_web_client_id">626787040705-58tggf934ms2v7m151rc9g0he8g97mri.apps.googleusercontent.com</string>
     <string name="search_hint">Buscar cuarto</string>
+    <string name="google_maps_key">AIzaSyDI8U5k2MMq-dC0jCPpEGjy_jk4reFYR3o</string>
 
     <string name="terms_text">
 1. Información Pública del Usuario\nAl registrarte y utilizar nuestra plataforma, aceptas que la información que proporciones –incluyendo nombre, fotografía de perfil, descripción y ubicación– sea visible públicamente por otros usuarios con el fin de facilitar el proceso de búsqueda y renta de habitaciones.\n\n2. Permisos de Cámara y Almacenamiento\nPara mejorar la experiencia de los usuarios y permitir la publicación de cuartos, la app solicita acceso a la cámara y almacenamiento de tu dispositivo. Estos permisos son necesarios para:\n• Capturar fotografías directamente desde la app.\n• Seleccionar imágenes guardadas en tu dispositivo para subir a tu perfil o publicaciones.\n• Almacenar temporalmente contenido visual relacionado con tus publicaciones.\nEl uso de estos permisos está limitado únicamente a funciones dentro de la plataforma y no se utilizarán con fines externos ni sin tu consentimiento.\n\n3. Uso de Datos\nLa app recopila datos para mejorar el servicio, como ubicación aproximada para mostrar cuartos cercanos. No compartimos datos personales con terceros sin consentimiento.

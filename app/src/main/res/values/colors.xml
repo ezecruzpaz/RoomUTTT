@@ -12,7 +12,10 @@
     <color name="light_gray">#F5F5F5</color>
     <color name="hint_gray">#888888</color>
     <color name="stroke_gray">#CCCCCC</color>
+    <color name="darker_gray">#757575</color>
 
+    <color name="service_background">#FFFFFF</color>
+    <color name="service_text">#888888</color>
 
 
 </resources>

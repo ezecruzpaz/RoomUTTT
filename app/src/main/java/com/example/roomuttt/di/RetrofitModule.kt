@@ -37,9 +37,9 @@ object RetrofitModule {
     @Provides
     @Singleton
     fun provideGsonConverterFactory(): GsonConverterFactory {
-        // ⭐ IMPORTANTE: Configurar Gson para excluir campos sin @Expose
+        // QUITÉ excludeFieldsWithoutExposeAnnotation() - Era el culpable
         val gson = GsonBuilder()
-            .excludeFieldsWithoutExposeAnnotation()  // Solo serializa campos con @Expose
+            .serializeNulls()  // Incluye campos null
             .create()
 
         return GsonConverterFactory.create(gson)
@@ -54,7 +54,7 @@ object RetrofitModule {
         return Retrofit.Builder()
             .baseUrl(BASE_URL)
             .client(okHttpClient)
-            .addConverterFactory(gsonConverterFactory)  // Usar el Gson configurado
+            .addConverterFactory(gsonConverterFactory)
             .build()
     }
 
