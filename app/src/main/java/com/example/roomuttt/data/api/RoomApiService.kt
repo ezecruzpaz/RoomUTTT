@@ -1,14 +1,20 @@
 package com.example.roomuttt.data.api
 
 import com.example.roomuttt.domain.model.RoomResponse
+import com.example.roomuttt.domain.model.RoomsListResponse
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import retrofit2.Response
+import retrofit2.http.GET
 import retrofit2.http.Multipart
 import retrofit2.http.POST
 import retrofit2.http.Part
 
 interface RoomApiService {
+    // 🆕 Endpoint para obtener todos los cuartos
+    @GET("api/Room")
+    suspend fun getRooms(): Response<RoomsListResponse>
+
 
     @Multipart
     @POST("api/Room")
@@ -23,4 +29,6 @@ interface RoomApiService {
         @Part("Ubicacion") ubicacion: RequestBody,
         @Part imagenes: List<MultipartBody.Part>? = null  // IMPORTANTE: sin nombre aquí
     ): Response<RoomResponse>
+
+
 }

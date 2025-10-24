@@ -75,6 +75,26 @@
             android:name=".ui.terms.TermsActivity"
             android:exported="false"
             android:theme="@style/Theme.RoomUTTT" />
+        <!-- Pantalla cuenta Arrendatario -->
+
+        <activity
+            android:name=".ui.renter.RenterRegistrationActivity"
+            android:exported="false" />
+
+        <!-- Añade esta línea para AllRoomsActivity -->
+        <activity
+            android:name=".ui.room.AllRoomsActivity"
+            android:exported="false">
+        </activity>
+
+        <activity
+            android:name=".ui.renter.RenterDashboardActivity"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
 
         <!-- API Key de Google Maps -->
         <meta-data

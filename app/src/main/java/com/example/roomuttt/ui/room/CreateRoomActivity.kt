@@ -8,9 +8,12 @@ import android.net.Uri
 import android.os.Bundle
 import android.provider.OpenableColumns
 import android.util.Log
+import android.view.MotionEvent
+import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageView
+import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -26,10 +29,7 @@ import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
-import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.LatLng
-import com.google.android.gms.maps.model.Marker
-import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.libraries.places.api.Places
 import com.google.android.libraries.places.api.model.Place
 import com.google.android.libraries.places.widget.AutocompleteSupportFragment
@@ -44,6 +44,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
 import java.io.FileOutputStream
 import javax.inject.Inject
+import cn.pedant.SweetAlert.SweetAlertDialog
 
 @AndroidEntryPoint
 class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
@@ -62,12 +63,15 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var tvImageCount: TextView
     private lateinit var btnCreate: Button
     private lateinit var mapFragment: SupportMapFragment
+    private lateinit var centerMarkerView: ImageView
+    private lateinit var scrollView: ScrollView
     private var googleMap: GoogleMap? = null
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private var currentLocation: LatLng? = null
 
     private val selectedImageUris = mutableListOf<Uri>()
     private val TAG = "CreateRoomActivity"
+    private var progressDialog: SweetAlertDialog? = null
 
     private val serviciosDisponibles = arrayOf(
         "Internet",
@@ -91,11 +95,6 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
             ivPreview.setImageURI(uris[0])
             tvImageCount.text = "${uris.size} imagen(es) seleccionada(s)"
             Log.d(TAG, "Imágenes seleccionadas: ${uris.size}")
-            Toast.makeText(
-                this,
-                "${uris.size} imagen(es) seleccionada(s)",
-                Toast.LENGTH_SHORT
-            ).show()
         }
     }
 
@@ -143,6 +142,8 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
         ivPreview = findViewById(R.id.iv_preview)
         tvImageCount = findViewById(R.id.tv_image_count)
         btnCreate = findViewById(R.id.btn_create)
+        centerMarkerView = findViewById(R.id.center_marker)
+        scrollView = findViewById(R.id.scroll_view)
     }
 
     private fun setupListeners() {
@@ -167,9 +168,7 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
         autocompleteFragment.setOnPlaceSelectedListener(object : PlaceSelectionListener {
             override fun onPlaceSelected(place: Place) {
                 place.latLng?.let { latLng ->
-                    currentLocation = latLng
                     googleMap?.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 17f))
-                    updateLocationMarker(latLng)
                     Log.d(TAG, "📍 Lugar seleccionado: ${place.name}, $latLng")
                     Toast.makeText(
                         this@CreateRoomActivity,
@@ -181,11 +180,6 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
 
             override fun onError(status: com.google.android.gms.common.api.Status) {
                 Log.e(TAG, "Error al seleccionar lugar: ${status.statusMessage}")
-                Toast.makeText(
-                    this@CreateRoomActivity,
-                    "Error al buscar ubicación",
-                    Toast.LENGTH_SHORT
-                ).show()
             }
         })
     }
@@ -244,7 +238,7 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
         val uid = auth.currentUser?.uid
 
         if (uid.isNullOrEmpty()) {
-            Toast.makeText(this, "Debes iniciar sesión", Toast.LENGTH_SHORT).show()
+            showWarningDialog("Inicio de Sesión", "Debes iniciar sesión")
             return
         }
 
@@ -254,16 +248,17 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
         val capacidadStr = etCapacidad.text.toString().trim()
         val serviciosStr = getServiciosString()
 
-        // Validaciones
         if (nombre.isEmpty()) {
             etNombre.error = "El nombre es requerido"
             etNombre.requestFocus()
+            showWarningDialog("Campo Requerido", "El nombre es requerido")
             return
         }
 
         if (precioStr.isEmpty()) {
             etPrecio.error = "El precio es requerido"
             etPrecio.requestFocus()
+            showWarningDialog("Campo Requerido", "El precio es requerido")
             return
         }
 
@@ -271,12 +266,14 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
         if (precio == null || precio <= 0) {
             etPrecio.error = "El precio debe ser mayor a 0"
             etPrecio.requestFocus()
+            showWarningDialog("Precio Inválido", "El precio debe ser mayor a 0")
             return
         }
 
         if (capacidadStr.isEmpty()) {
             etCapacidad.error = "La capacidad es requerida"
             etCapacidad.requestFocus()
+            showWarningDialog("Campo Requerido", "La capacidad es requerida")
             return
         }
 
@@ -284,11 +281,12 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
         if (capacidad == null || capacidad < 1) {
             etCapacidad.error = "La capacidad debe ser al menos 1"
             etCapacidad.requestFocus()
+            showWarningDialog("Capacidad Inválida", "La capacidad debe ser al menos 1")
             return
         }
 
         if (serviciosStr.isEmpty()) {
-            Toast.makeText(this, "Selecciona al menos un servicio", Toast.LENGTH_SHORT).show()
+            showWarningDialog("Servicios", "Selecciona al menos un servicio")
             return
         }
 
@@ -296,8 +294,7 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
 
         lifecycleScope.launch {
             try {
-                Toast.makeText(this@CreateRoomActivity, "Subiendo cuarto...", Toast.LENGTH_SHORT).show()
-
+                showProgressDialog("Subiendo cuarto...")
                 val nombreBody = nombre.toRequestBody("text/plain".toMediaTypeOrNull())
                 val precioBody = precio.toString().toRequestBody("text/plain".toMediaTypeOrNull())
                 val descripcionBody = (descripcion.ifEmpty { "Sin descripción" })
@@ -328,34 +325,23 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
                     imagenes = imageParts
                 )
 
-                Log.d(TAG, "Response code: ${response.code()}")
+                dismissProgressDialog()
 
                 if (response.isSuccessful && response.body() != null) {
                     val body = response.body()
-                    Log.d(TAG, "✅ Éxito: ${body?.message}")
-                    Toast.makeText(
-                        this@CreateRoomActivity,
-                        body?.message ?: "Cuarto creado exitosamente",
-                        Toast.LENGTH_LONG
-                    ).show()
-                    finish()
+                    showSuccessDialog(
+                        title = "¡Éxito!",
+                        message = body?.message ?: "Cuarto creado exitosamente"
+                    ) {
+                        finish()
+                    }
                 } else {
-                    val errorMsg = response.errorBody()?.string() ?: "Error desconocido"
-                    Log.e(TAG, "❌ Error API (${response.code()}): $errorMsg")
-                    Toast.makeText(
-                        this@CreateRoomActivity,
-                        "Error: ${response.code()}",
-                        Toast.LENGTH_LONG
-                    ).show()
+                    showErrorDialog("Error", "Error: ${response.code()}")
                 }
             } catch (e: Exception) {
+                dismissProgressDialog()
                 Log.e(TAG, "❌ Error de red: ${e.message}", e)
-                e.printStackTrace()
-                Toast.makeText(
-                    this@CreateRoomActivity,
-                    "Error de conexión: ${e.message}",
-                    Toast.LENGTH_SHORT
-                ).show()
+                showErrorDialog("Error de Conexión", "Error de conexión: ${e.message}")
             }
         }
     }
@@ -379,7 +365,6 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
                     requestBody
                 )
                 parts.add(part)
-                Log.d(TAG, "Imagen preparada: $fileName (${tempFile.length()} bytes)")
             } catch (e: Exception) {
                 Log.e(TAG, "Error preparando imagen: ${e.message}", e)
             }
@@ -410,7 +395,7 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
         return result
     }
 
-    private var centerMarker: Marker? = null
+    // Reemplaza la función onMapReady completa con esta versión mejorada:
 
     override fun onMapReady(googleMap: GoogleMap) {
         this.googleMap = googleMap
@@ -418,28 +403,80 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
         // Configurar UI del mapa
         googleMap.uiSettings.apply {
             isZoomControlsEnabled = true
+            isZoomGesturesEnabled = true  // ✅ ACTIVAR zoom con gestos
+            isScrollGesturesEnabled = true // ✅ ACTIVAR desplazamiento
+            isRotateGesturesEnabled = true
+            isTiltGesturesEnabled = true
             isMyLocationButtonEnabled = true
             isCompassEnabled = true
             isMapToolbarEnabled = false
         }
 
-        // 🔥 LISTENER PRINCIPAL: Actualiza la ubicación cuando el usuario mueve el mapa
+        // Obtener la vista del MapFragment
+        val mapView = mapFragment.view
+
+        // 🔥 SOLUCIÓN MEJORADA: Bloquear completamente el ScrollView cuando se toca el mapa
+        mapView?.setOnTouchListener { v, event ->
+            val action = event.actionMasked
+
+            when (action) {
+                MotionEvent.ACTION_DOWN -> {
+                    // 🚫 BLOQUEAR COMPLETAMENTE el ScrollView
+                    scrollView.requestDisallowInterceptTouchEvent(true)
+                    v.parent?.requestDisallowInterceptTouchEvent(true)
+
+                    // Animación del marcador
+                    centerMarkerView.animate()
+                        .translationY(-50f)
+                        .setDuration(200)
+                        .start()
+                }
+                MotionEvent.ACTION_POINTER_DOWN -> {
+                    // También bloquear para gestos multi-touch (zoom)
+                    scrollView.requestDisallowInterceptTouchEvent(true)
+                    v.parent?.requestDisallowInterceptTouchEvent(true)
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    // Mantener bloqueado mientras se arrastra o hace zoom
+                    scrollView.requestDisallowInterceptTouchEvent(true)
+                    v.parent?.requestDisallowInterceptTouchEvent(true)
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    // ✅ DESBLOQUEAR solo cuando todos los dedos se levanten
+                    if (event.pointerCount <= 1) {
+                        scrollView.requestDisallowInterceptTouchEvent(false)
+                        v.parent?.requestDisallowInterceptTouchEvent(false)
+
+                        // Restaurar marcador
+                        centerMarkerView.animate()
+                            .translationY(0f)
+                            .setDuration(200)
+                            .start()
+
+                        // Guardar ubicación
+                        val center = googleMap.cameraPosition.target
+                        currentLocation = center
+                        Log.d(TAG, "📍 Ubicación seleccionada: ${center.latitude}, ${center.longitude}")
+                    }
+                }
+                MotionEvent.ACTION_POINTER_UP -> {
+                    // Si quedan dedos tocando, mantener bloqueado
+                    if (event.pointerCount > 1) {
+                        scrollView.requestDisallowInterceptTouchEvent(true)
+                        v.parent?.requestDisallowInterceptTouchEvent(true)
+                    }
+                }
+            }
+            false // ⚠️ IMPORTANTE: Retornar false para que el mapa reciba los eventos
+        }
+
+        // Actualizar ubicación cuando la cámara se detiene
         googleMap.setOnCameraIdleListener {
             val center = googleMap.cameraPosition.target
             currentLocation = center
-            updateLocationMarker(center)
-
-            Log.d(TAG, "📍 Ubicación ajustada: $center")
         }
 
-        // Listener para cuando el usuario empieza a mover el mapa
-        googleMap.setOnCameraMoveStartedListener { reason ->
-            if (reason == GoogleMap.OnCameraMoveStartedListener.REASON_GESTURE) {
-                // Usuario está moviendo el mapa manualmente
-                centerMarker?.remove()
-            }
-        }
-
+        // Configurar permisos y ubicación inicial
         if (hasLocationPermission()) {
             enableMyLocation()
             getCurrentLocation()
@@ -448,21 +485,22 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
-    // 🎯 Método para actualizar el marcador central
-    private fun updateLocationMarker(location: LatLng) {
-        centerMarker?.remove()
-        centerMarker = googleMap?.addMarker(
-            MarkerOptions()
-                .position(location)
-                .title("Ubicación seleccionada")
-                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED))
-        )
+    // 🆕 OPCIONAL: Agrega esta función para hacer el mapa más responsivo
+    private fun optimizeMapPerformance() {
+        googleMap?.apply {
+            // Reducir la latencia del mapa
+            setLatLngBoundsForCameraTarget(null)
+
+            // Mejorar rendimiento
+            setMinZoomPreference(10f)
+            setMaxZoomPreference(20f)
+        }
     }
+
 
     private fun checkAndRequestLocationPermission() {
         when {
             hasLocationPermission() -> {
-                Log.d(TAG, "Permiso de ubicación ya concedido")
                 enableMyLocation()
                 getCurrentLocation()
             }
@@ -483,51 +521,36 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     private fun enableMyLocation() {
-        if (!hasLocationPermission()) {
-            Log.w(TAG, "No se puede habilitar ubicación sin permiso")
-            return
-        }
+        if (!hasLocationPermission()) return
         try {
             googleMap?.isMyLocationEnabled = true
-            Log.d(TAG, "Ubicación habilitada en mapa")
         } catch (e: SecurityException) {
             Log.e(TAG, "Error al habilitar ubicación: ${e.message}")
-            Toast.makeText(this, "Error al habilitar ubicación", Toast.LENGTH_SHORT).show()
         }
     }
 
     private fun getCurrentLocation() {
-        if (!hasLocationPermission()) {
-            Log.w(TAG, "No se puede obtener ubicación sin permiso")
-            return
-        }
+        if (!hasLocationPermission()) return
         try {
             fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
                 if (location != null) {
                     currentLocation = LatLng(location.latitude, location.longitude)
                     googleMap?.animateCamera(CameraUpdateFactory.newLatLngZoom(currentLocation!!, 15f))
-                    updateLocationMarker(currentLocation!!)
-                    Log.d(TAG, "Ubicación actual: ${location.latitude}, ${location.longitude}")
                     Toast.makeText(this, "📍 Ubicación obtenida", Toast.LENGTH_SHORT).show()
                 } else {
-                    Log.w(TAG, "Ubicación es null - usando ubicación predeterminada")
                     useDefaultLocation()
                 }
-            }.addOnFailureListener { e ->
-                Log.e(TAG, "Error al obtener ubicación: ${e.message}")
+            }.addOnFailureListener {
                 useDefaultLocation()
             }
         } catch (e: SecurityException) {
-            Log.e(TAG, "Error de seguridad al obtener ubicación: ${e.message}")
             useDefaultLocation()
         }
     }
 
     private fun useDefaultLocation() {
-        currentLocation = LatLng(20.0910, -98.7624) // UTTT
+        currentLocation = LatLng(20.0910, -98.7624)
         googleMap?.animateCamera(CameraUpdateFactory.newLatLngZoom(currentLocation!!, 12f))
-        updateLocationMarker(currentLocation!!)
-        Log.d(TAG, "Usando ubicación predeterminada: UTTT")
         Toast.makeText(this, "Usando ubicación predeterminada", Toast.LENGTH_SHORT).show()
     }
 
@@ -553,6 +576,49 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
                 dialog.dismiss()
                 useDefaultLocation()
             }
+            .show()
+    }
+
+    private fun showProgressDialog(message: String) {
+        progressDialog = SweetAlertDialog(this, SweetAlertDialog.PROGRESS_TYPE).apply {
+            progressHelper.barColor = android.graphics.Color.parseColor("#A5DC86")
+            titleText = "Cargando"
+            contentText = message
+            setCancelable(false)
+            show()
+        }
+    }
+
+    private fun dismissProgressDialog() {
+        progressDialog?.dismiss()
+        progressDialog = null
+    }
+
+    private fun showSuccessDialog(title: String, message: String, onConfirm: () -> Unit) {
+        SweetAlertDialog(this, SweetAlertDialog.SUCCESS_TYPE)
+            .setTitleText(title)
+            .setContentText(message)
+            .setConfirmText("Continuar")
+            .setConfirmClickListener {
+                it.dismiss()
+                onConfirm()
+            }
+            .show()
+    }
+
+    private fun showErrorDialog(title: String, message: String) {
+        SweetAlertDialog(this, SweetAlertDialog.ERROR_TYPE)
+            .setTitleText(title)
+            .setContentText(message)
+            .setConfirmText("Entendido")
+            .show()
+    }
+
+    private fun showWarningDialog(title: String, message: String) {
+        SweetAlertDialog(this, SweetAlertDialog.WARNING_TYPE)
+            .setTitleText(title)
+            .setContentText(message)
+            .setConfirmText("OK")
             .show()
     }
 }

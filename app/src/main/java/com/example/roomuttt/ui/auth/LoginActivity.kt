@@ -14,11 +14,13 @@ import androidx.lifecycle.lifecycleScope
 import com.example.roomuttt.R
 import com.example.roomuttt.ui.auth.viewmodel.LoginViewModel
 import com.example.roomuttt.ui.home.MainActivity
+import com.example.roomuttt.ui.renter.RenterDashboardActivity // Nueva actividad para arrendatarios
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import cn.pedant.SweetAlert.SweetAlertDialog
@@ -31,6 +33,7 @@ class LoginActivity : AppCompatActivity() {
     private lateinit var auth: FirebaseAuth
     private val RC_SIGN_IN = 9001
     private val TAG = "LoginActivity"
+    private val firestore = FirebaseFirestore.getInstance()
 
     private lateinit var etEmail: EditText
     private lateinit var etPassword: EditText
@@ -96,14 +99,8 @@ class LoginActivity : AppCompatActivity() {
                     dismissProgressDialog()
 
                     if (it.isSuccess == true) {
-                        Log.d(TAG, "Login exitoso - Navegando a MainActivity")
-                        showSuccessDialog(
-                            title = "¡Bienvenido!",
-                            message = "Inicio de sesión exitoso"
-                        ) {
-                            startActivity(Intent(this@LoginActivity, MainActivity::class.java))
-                            finish()
-                        }
+                        Log.d(TAG, "Login exitoso - Verificando rol de arrendatario")
+                        checkRenterRole()
                     } else if (it.isFailure == true) {
                         Log.e(TAG, "Login falló: ${it.exceptionOrNull()?.message}")
                         val errorMsg = getErrorMessage(it.exceptionOrNull()?.message)
@@ -111,6 +108,31 @@ class LoginActivity : AppCompatActivity() {
                     }
                 }
             }
+        }
+    }
+
+    private fun checkRenterRole() {
+        val user = auth.currentUser
+        user?.uid?.let { uid ->
+            firestore.collection("renters")
+                .document(uid)
+                .get()
+                .addOnSuccessListener { document ->
+                    if (document.exists()) {
+                        Log.d(TAG, "Usuario es arrendatario - Navegando a RenterDashboardActivity")
+                        startActivity(Intent(this, RenterDashboardActivity::class.java))
+                    } else {
+                        Log.d(TAG, "Usuario no es arrendatario - Navegando a MainActivity")
+                        startActivity(Intent(this, MainActivity::class.java))
+                    }
+                    finish()
+                }
+                .addOnFailureListener { e ->
+                    Log.e(TAG, "Error al verificar rol de arrendatario: ${e.message}")
+                    // En caso de error, asumimos que no es arrendatario por seguridad
+                    startActivity(Intent(this, MainActivity::class.java))
+                    finish()
+                }
         }
     }
 
@@ -151,7 +173,6 @@ class LoginActivity : AppCompatActivity() {
 
     private fun getErrorMessage(error: String?): String {
         return when {
-            // Errores de credenciales
             error?.contains("credential is incorrect", ignoreCase = true) == true ||
                     error?.contains("malformed", ignoreCase = true) == true ||
                     error?.contains("has expired", ignoreCase = true) == true ->
@@ -179,7 +200,6 @@ class LoginActivity : AppCompatActivity() {
             error?.contains("too-many-requests", ignoreCase = true) == true ->
                 "Demasiados intentos fallidos. Intenta más tarde"
 
-            // Errores de red
             error?.contains("network", ignoreCase = true) == true ||
                     error?.contains("connection", ignoreCase = true) == true ->
                 "Sin conexión a internet. Verifica tu red"

@@ -28,7 +28,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_centerInParent="true"
-                    android:text="Inicio"
+                    android:text="Panel de Arrendatario"
                     android:textSize="18sp"
                     android:textStyle="bold"
                     android:textColor="#000000" />
@@ -54,9 +54,7 @@
                         android:layout_height="24dp"
                         android:src="@drawable/ic_notifications"
                         android:contentDescription="Notificaciones" />
-
                 </LinearLayout>
-
             </RelativeLayout>
 
             <!-- SearchView -->
@@ -73,43 +71,12 @@
                     android:id="@+id/search_view"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    app:queryHint="Buscar Universidad"
+                    app:queryHint="Buscar tus cuartos"
                     app:iconifiedByDefault="false"
                     android:background="@android:color/transparent" />
-
             </androidx.cardview.widget.CardView>
 
-            <!-- Mapa con círculo de radio -->
-            <androidx.cardview.widget.CardView
-                android:layout_width="match_parent"
-                android:layout_height="250dp"
-                android:layout_margin="16dp"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="4dp">
-
-                <FrameLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent">
-
-                    <fragment
-                        android:id="@+id/map_fragment"
-                        android:name="com.google.android.gms.maps.SupportMapFragment"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent" />
-
-                    <!-- ProgressBar sobre el mapa -->
-                    <ProgressBar
-                        android:id="@+id/progress_bar"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_gravity="center"
-                        android:visibility="gone" />
-
-                </FrameLayout>
-
-            </androidx.cardview.widget.CardView>
-
-            <!-- 🔥 LISTA VERTICAL DE SOLO 2 CUARTOS -->
+            <!-- Lista de cuartos (máximo 2 visibles inicialmente) -->
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/recycler_rooms"
                 android:layout_width="match_parent"
@@ -118,25 +85,25 @@
                 android:paddingHorizontal="16dp"
                 android:paddingBottom="8dp"
                 android:nestedScrollingEnabled="true"
-                android:visibility="gone" />
+                android:visibility="visible" />
 
-            <!-- 🔥 BOTÓN "VER MÁS" - Igual que "Ver Detalles", pequeño y centrado -->
+            <!-- Botón "Ver más" -->
             <Button
                 android:id="@+id/btn_view_more"
                 android:layout_width="wrap_content"
-            android:layout_height="36dp"
-            android:layout_marginHorizontal="16dp"
-            android:layout_gravity="center"
-            android:layout_marginTop="8dp"
-            android:layout_marginBottom="80dp"
-            android:paddingHorizontal="20dp"
-            android:text="📋 Ver más"
-            android:textColor="#FFFFFF"
-            android:backgroundTint="#000000"
-            android:textStyle="bold"
-            android:textSize="12sp"
-            android:visibility="gone"
-            style="@style/Widget.MaterialComponents.Button" />
+                android:layout_height="36dp"
+                android:layout_marginHorizontal="16dp"
+                android:layout_gravity="center"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="80dp"
+                android:paddingHorizontal="20dp"
+                android:text="📋 Ver más"
+                android:textColor="#FFFFFF"
+                android:backgroundTint="#000000"
+                android:textStyle="bold"
+                android:textSize="12sp"
+                android:visibility="visible"
+                style="@style/Widget.MaterialComponents.Button" />
 
             <!-- Mensaje cuando no hay cuartos -->
             <TextView
@@ -144,18 +111,17 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_margin="16dp"
-                android:text="🏠 No hay cuartos disponibles en el radio de 20 km\n\nIntenta buscar otra ubicación"
+                android:text="🏠 No has publicado cuartos aún\n\nIntenta crear uno nuevo"
                 android:textSize="14sp"
                 android:textColor="#999999"
                 android:gravity="center"
                 android:padding="32dp"
-                android:visibility="gone" />
+                android:visibility="visible" />
 
         </LinearLayout>
-
     </ScrollView>
 
-    <!-- Barra de Navegación Inferior (Fixed al fondo) -->
+    <!-- Barra de Navegación Inferior -->
     <com.google.android.material.bottomnavigation.BottomNavigationView
         android:id="@+id/bottom_navigation"
         android:layout_width="match_parent"
@@ -165,5 +131,4 @@
         android:elevation="8dp"
         app:menu="@menu/bottom_nav_menu"
         app:labelVisibilityMode="labeled" />
-
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

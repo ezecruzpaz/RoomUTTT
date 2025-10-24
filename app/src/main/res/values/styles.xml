@@ -1,0 +1,8 @@
+<resources>
+    <!-- Otros estilos -->
+    <style name="CustomTextInputLayout" parent="Widget.MaterialComponents.TextInputLayout.FilledBox">
+        <item name="boxBackgroundColor">@color/white</item> <!-- Fondo blanco -->
+        <item name="boxStrokeColor">@color/black</item> <!-- Borde negro -->
+
+    </style>
+</resources>

@@ -24,6 +24,7 @@ import com.bumptech.glide.Glide
 import com.example.roomuttt.R
 import com.example.roomuttt.ui.auth.LoginActivity
 import com.example.roomuttt.ui.profile.viewmodel.ProfileViewModel
+import com.example.roomuttt.ui.renter.RenterRegistrationActivity
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.AndroidEntryPoint
@@ -134,8 +135,9 @@ class ProfileActivity : AppCompatActivity() {
             showEditDialog()
         }
 
+        val btnCreateRenter = findViewById<androidx.appcompat.widget.AppCompatButton>(R.id.btn_create_renter)
         btnCreateRenter.setOnClickListener {
-            Toast.makeText(this, "Crear cuenta de arrendatario", Toast.LENGTH_SHORT).show()
+            startActivity(Intent(this, RenterRegistrationActivity::class.java))
         }
 
         btnDeleteProfile.setOnClickListener {
