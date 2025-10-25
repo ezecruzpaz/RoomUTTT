@@ -3,123 +3,322 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F5F5F5">
+    android:background="#FFFFFF">
 
-    <ScrollView
+    <!-- Cambiado de ScrollView a LinearLayout principal -->
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:paddingBottom="80dp">
 
+        <!-- Header -->
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="16dp"
+            android:background="#FFFFFF">
+
+            <TextView
+                android:id="@+id/tv_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerInParent="true"
+                android:text="Cuartos"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="#000000" />
+
+            <ImageView
+                android:id="@+id/iv_settings"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_settings"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:contentDescription="Configuración" />
+        </RelativeLayout>
+
+        <!-- Botones de Acción -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:paddingBottom="80dp"> <!-- Espacio para la barra de navegación -->
+            android:orientation="horizontal"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="12dp"
+            android:gravity="center_vertical">
 
-            <!-- Header -->
-            <RelativeLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:padding="16dp"
-                android:background="#FFFFFF"
-                android:elevation="2dp">
-
-                <TextView
-                    android:id="@+id/tv_title"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_centerInParent="true"
-                    android:text="Panel de Arrendatario"
-                    android:textSize="18sp"
-                    android:textStyle="bold"
-                    android:textColor="#000000" />
-
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_alignParentEnd="true"
-                    android:layout_centerVertical="true"
-                    android:orientation="horizontal">
-
-                    <ImageView
-                        android:id="@+id/iv_profile"
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:src="@drawable/ic_profile"
-                        android:layout_marginEnd="16dp"
-                        android:contentDescription="Perfil" />
-
-                    <ImageView
-                        android:id="@+id/iv_notifications"
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:src="@drawable/ic_notifications"
-                        android:contentDescription="Notificaciones" />
-                </LinearLayout>
-            </RelativeLayout>
-
-            <!-- SearchView -->
-            <androidx.cardview.widget.CardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginHorizontal="16dp"
-                android:layout_marginTop="8dp"
-                app:cardCornerRadius="8dp"
-                app:cardElevation="2dp"
-                app:cardBackgroundColor="#FFFFFF">
-
-                <androidx.appcompat.widget.SearchView
-                    android:id="@+id/search_view"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    app:queryHint="Buscar tus cuartos"
-                    app:iconifiedByDefault="false"
-                    android:background="@android:color/transparent" />
-            </androidx.cardview.widget.CardView>
-
-            <!-- Lista de cuartos (máximo 2 visibles inicialmente) -->
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/recycler_rooms"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:clipToPadding="false"
-                android:paddingHorizontal="16dp"
-                android:paddingBottom="8dp"
-                android:nestedScrollingEnabled="true"
-                android:visibility="visible" />
-
-            <!-- Botón "Ver más" -->
             <Button
-                android:id="@+id/btn_view_more"
+                android:id="@+id/btn_add_room"
                 android:layout_width="wrap_content"
-                android:layout_height="36dp"
-                android:layout_marginHorizontal="16dp"
-                android:layout_gravity="center"
-                android:layout_marginTop="8dp"
-                android:layout_marginBottom="80dp"
-                android:paddingHorizontal="20dp"
-                android:text="📋 Ver más"
+                android:layout_height="40dp"
+                android:text="Agregar cuarto"
                 android:textColor="#FFFFFF"
                 android:backgroundTint="#000000"
-                android:textStyle="bold"
-                android:textSize="12sp"
-                android:visibility="visible"
+                android:textAllCaps="false"
+                android:paddingHorizontal="20dp"
+                android:textSize="14sp"
                 style="@style/Widget.MaterialComponents.Button" />
 
-            <!-- Mensaje cuando no hay cuartos -->
-            <TextView
-                android:id="@+id/tv_no_rooms"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_margin="16dp"
-                android:text="🏠 No has publicado cuartos aún\n\nIntenta crear uno nuevo"
-                android:textSize="14sp"
-                android:textColor="#999999"
-                android:gravity="center"
-                android:padding="32dp"
-                android:visibility="visible" />
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1" />
 
+            <!-- Botón de Filtros como Dropdown -->
+            <RelativeLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content">
+
+                <Button
+                    android:id="@+id/btn_filters"
+                    android:layout_width="120dp"
+                    android:layout_height="40dp"
+                    android:text="Filtros ▼"
+                    android:textColor="#000000"
+                    android:backgroundTint="#F5F5F5"
+                    android:textAllCaps="false"
+                    android:paddingHorizontal="12dp"
+                    android:paddingEnd="8dp"
+                    android:textSize="14sp"
+                    android:gravity="center"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
+
+                <!-- Dropdown Menu de Filtros -->
+                <androidx.cardview.widget.CardView
+                    android:id="@+id/layout_status_filters"
+                    android:layout_width="180dp"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@id/btn_filters"
+                    android:layout_alignEnd="@id/btn_filters"
+                    android:layout_marginTop="4dp"
+                    android:visibility="gone"
+                    android:elevation="12dp"
+                    app:cardCornerRadius="8dp"
+                    app:cardElevation="8dp"
+                    app:cardBackgroundColor="#FFFFFF">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="8dp">
+
+                        <!-- Filtro: Todos -->
+                        <LinearLayout
+                            android:id="@+id/filter_all"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:padding="12dp"
+                            android:background="?attr/selectableItemBackground">
+
+                            <TextView
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
+                                android:text="📋"
+                                android:textSize="16sp"
+                                android:gravity="center" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="12dp"
+                                android:text="Todos"
+                                android:textSize="14sp"
+                                android:textColor="#000000" />
+                        </LinearLayout>
+
+                        <!-- Divisor -->
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="1dp"
+                            android:background="#E0E0E0"
+                            android:layout_marginVertical="4dp" />
+
+                        <!-- Filtro: Ocupados -->
+                        <LinearLayout
+                            android:id="@+id/filter_occupied"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:padding="12dp"
+                            android:background="?attr/selectableItemBackground">
+
+                            <TextView
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
+                                android:text="🔴"
+                                android:textSize="16sp"
+                                android:gravity="center" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="12dp"
+                                android:text="Ocupados"
+                                android:textSize="14sp"
+                                android:textColor="#000000" />
+                        </LinearLayout>
+
+                        <!-- Divisor -->
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="1dp"
+                            android:background="#E0E0E0"
+                            android:layout_marginVertical="4dp" />
+
+                        <!-- Filtro: Disponibles -->
+                        <LinearLayout
+                            android:id="@+id/filter_available"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:padding="12dp"
+                            android:background="?attr/selectableItemBackground">
+
+                            <TextView
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
+                                android:text="🟢"
+                                android:textSize="16sp"
+                                android:gravity="center" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="12dp"
+                                android:text="Disponibles"
+                                android:textSize="14sp"
+                                android:textColor="#000000" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </androidx.cardview.widget.CardView>
+            </RelativeLayout>
         </LinearLayout>
-    </ScrollView>
+
+        <!-- Título de Status -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="12dp"
+            android:text="Status"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="#000000" />
+
+        <!-- Cards de Status -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingHorizontal="16dp"
+            android:weightSum="2">
+
+            <!-- Cuartos ocupados -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="0dp"
+                app:cardBackgroundColor="#F5F5F5">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Cuartos\nocupados"
+                        android:textSize="13sp"
+                        android:textColor="#666666"
+                        android:lineSpacingExtra="2dp" />
+
+                    <TextView
+                        android:id="@+id/tv_occupied_count"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="0"
+                        android:textSize="32sp"
+                        android:textStyle="bold"
+                        android:textColor="#000000" />
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <!-- Cuartos desocupados -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="0dp"
+                app:cardBackgroundColor="#F5F5F5">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Cuartos\ndesocupados"
+                        android:textSize="13sp"
+                        android:textColor="#666666"
+                        android:lineSpacingExtra="2dp" />
+
+                    <TextView
+                        android:id="@+id/tv_available_count"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="0"
+                        android:textSize="32sp"
+                        android:textStyle="bold"
+                        android:textColor="#000000" />
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+        </LinearLayout>
+
+        <!-- Lista de cuartos - AHORA OCUPA TODO EL ESPACIO RESTANTE -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recycler_rooms"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_marginTop="16dp"
+            android:clipToPadding="false"
+            android:paddingHorizontal="16dp"
+            android:paddingBottom="8dp" />
+
+        <!-- Mensaje cuando no hay cuartos -->
+        <TextView
+            android:id="@+id/tv_no_rooms"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_margin="16dp"
+            android:text="🏠 No has publicado cuartos aún\n\nIntenta crear uno nuevo"
+            android:textSize="14sp"
+            android:textColor="#999999"
+            android:gravity="center"
+            android:padding="32dp"
+            android:visibility="gone" />
+
+    </LinearLayout>
 
     <!-- Barra de Navegación Inferior -->
     <com.google.android.material.bottomnavigation.BottomNavigationView
