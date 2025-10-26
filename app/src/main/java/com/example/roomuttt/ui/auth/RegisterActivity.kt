@@ -85,7 +85,7 @@ class RegisterActivity : AppCompatActivity() {
                         it.isSuccess -> {
                             showSuccessDialog(
                                 title = "¡Registro Exitoso!",
-                                message = "Tu cuenta ha sido creada. Por favor verifica tu email para activarla."
+                                message = "Tu cuenta ha sido creada."
                             ) {
                                 finish()
                             }

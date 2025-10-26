@@ -14,7 +14,7 @@ import androidx.lifecycle.lifecycleScope
 import com.example.roomuttt.R
 import com.example.roomuttt.ui.auth.viewmodel.LoginViewModel
 import com.example.roomuttt.ui.home.MainActivity
-import com.example.roomuttt.ui.renter.RenterDashboardActivity // Nueva actividad para arrendatarios
+import com.example.roomuttt.ui.renter.RenterDashboardActivity
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
@@ -99,8 +99,17 @@ class LoginActivity : AppCompatActivity() {
                     dismissProgressDialog()
 
                     if (it.isSuccess == true) {
-                        Log.d(TAG, "Login exitoso - Verificando rol de arrendatario")
-                        checkRenterRole()
+                        Log.d(TAG, "Login exitoso - Mostrando mensaje de éxito")
+
+                        // 🎉 MENSAJE DE ÉXITO ANTES DE NAVEGAR
+                        val userName = auth.currentUser?.displayName ?: auth.currentUser?.email?.substringBefore("@") ?: "usuario"
+                        showSuccessDialog(
+                            "¡Bienvenido!",
+                            "Inicio de sesión exitoso\n¡Hola $userName!"
+                        ) {
+                            // Después de cerrar el diálogo, verificar rol
+                            checkRenterRole()
+                        }
                     } else if (it.isFailure == true) {
                         Log.e(TAG, "Login falló: ${it.exceptionOrNull()?.message}")
                         val errorMsg = getErrorMessage(it.exceptionOrNull()?.message)

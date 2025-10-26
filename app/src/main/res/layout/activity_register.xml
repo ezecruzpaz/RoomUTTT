@@ -140,7 +140,8 @@
                     app:boxStrokeWidth="0dp"
                     app:boxStrokeWidthFocused="1dp"
                     app:hintTextColor="#888888"
-                    app:passwordToggleEnabled="true">
+                    app:passwordToggleEnabled="true"
+                    app:passwordToggleTint="#666666">
 
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/et_password"
@@ -148,7 +149,7 @@
                         android:layout_height="wrap_content"
                         android:inputType="textPassword"
                         android:textColor="@android:color/black"
-                        android:textColorHint="#999999"
+                        android:textColorHint="#050505FF"
                         android:textSize="14sp" />
 
                 </com.google.android.material.textfield.TextInputLayout>
@@ -169,7 +170,8 @@
                     app:boxStrokeWidth="0dp"
                     app:boxStrokeWidthFocused="1dp"
                     app:hintTextColor="#888888"
-                    app:passwordToggleEnabled="true">
+                    app:passwordToggleEnabled="true"
+                    app:passwordToggleTint="#666666">
 
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/et_confirm_password"
@@ -177,7 +179,7 @@
                         android:layout_height="wrap_content"
                         android:inputType="textPassword"
                         android:textColor="@android:color/black"
-                        android:textColorHint="#999999"
+                        android:textColorHint="#050505FF"
                         android:textSize="14sp" />
 
                 </com.google.android.material.textfield.TextInputLayout>

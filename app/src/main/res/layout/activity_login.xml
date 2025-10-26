@@ -4,12 +4,12 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/gradient_background"
-    android:fillViewport="true">
-
+    android:fillViewport="true"
+    android:scrollbars="none">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="match_parent">
 
         <!-- Título -->
         <TextView
@@ -46,9 +46,10 @@
             android:background="@drawable/form_background_custom"
             android:orientation="vertical"
             android:paddingHorizontal="24dp"
-            android:paddingVertical="24dp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/iv_character">
+            android:paddingTop="24dp"
+            android:paddingBottom="48dp"
+            app:layout_constraintTop_toBottomOf="@id/iv_character"
+            app:layout_constraintBottom_toBottomOf="parent">
 
             <!-- Título del formulario -->
             <TextView
@@ -105,7 +106,8 @@
                 app:boxStrokeWidth="0dp"
                 app:boxStrokeWidthFocused="1dp"
                 app:hintTextColor="#888888"
-                app:passwordToggleEnabled="true">
+                app:passwordToggleEnabled="true"
+                app:passwordToggleTint="#666666">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/et_password"
@@ -131,16 +133,35 @@
                 android:textSize="16sp"
                 android:textStyle="bold" />
 
-            <!-- Texto de registro -->
-            <TextView
-                android:id="@+id/tv_register"
+            <!-- Texto de registro - ESTILO LINK -->
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
                 android:layout_marginBottom="20dp"
-                android:text="No tienes una cuenta? Regístrate aquí"
-                android:textColor="#888888"
-                android:textSize="13sp" />
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="No tienes una cuenta? "
+                    android:textColor="#888888"
+                    android:textSize="13sp" />
+
+                <TextView
+                    android:id="@+id/tv_register"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Regístrate aquí"
+                    android:textColor="#4285F4"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="?attr/selectableItemBackground"
+                    android:paddingHorizontal="4dp"
+                    android:paddingVertical="2dp" />
+            </LinearLayout>
 
             <TextView
                 android:id="@+id/tv_users"
