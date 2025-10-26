@@ -13,6 +13,7 @@ import android.util.Log
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -29,6 +30,7 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
+import cn.pedant.SweetAlert.SweetAlertDialog
 
 @AndroidEntryPoint
 class ProfileActivity : AppCompatActivity() {
@@ -50,6 +52,9 @@ class ProfileActivity : AppCompatActivity() {
 
     // URI temporal para la foto de cámara
     private var tempCameraUri: Uri? = null
+
+    // Flag para evitar mensaje de error en primera carga
+    private var isFirstLoad = true
 
     // Launcher para seleccionar imagen de galería
     private val pickImageLauncher = registerForActivityResult(
@@ -146,18 +151,32 @@ class ProfileActivity : AppCompatActivity() {
     }
 
     private fun showImageSourceDialog() {
-        val options = arrayOf("Tomar foto", "Elegir de galería", "Cancelar")
+        val dialogView = layoutInflater.inflate(R.layout.dialog_change_photo, null)
 
-        AlertDialog.Builder(this)
-            .setTitle("Cambiar foto de perfil")
-            .setItems(options) { dialog, which ->
-                when (which) {
-                    0 -> checkCameraPermissionAndOpen()
-                    1 -> checkGalleryPermissionAndOpen()
-                    2 -> dialog.dismiss()
-                }
-            }
-            .show()
+        val dialog = AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setCancelable(true)
+            .create()
+
+        // Hacer el fondo transparente para que se vean los bordes redondeados
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        // Configurar listeners
+        dialogView.findViewById<LinearLayout>(R.id.option_take_photo).setOnClickListener {
+            dialog.dismiss()
+            checkCameraPermissionAndOpen()
+        }
+
+        dialogView.findViewById<LinearLayout>(R.id.option_gallery).setOnClickListener {
+            dialog.dismiss()
+            checkGalleryPermissionAndOpen()
+        }
+
+        dialogView.findViewById<androidx.appcompat.widget.AppCompatButton>(R.id.btn_cancel).setOnClickListener {
+            dialog.dismiss()
+        }
+
+        dialog.show()
     }
 
     private fun checkCameraPermissionAndOpen() {
@@ -230,20 +249,49 @@ class ProfileActivity : AppCompatActivity() {
     private fun uploadProfileImage(uri: Uri) {
         Log.d("ProfileActivity", "Imagen seleccionada: $uri")
 
-        // Mostrar la imagen inmediatamente
+        // Mostrar la imagen inmediatamente (vista previa)
         Glide.with(this)
             .load(uri)
             .circleCrop()
             .into(ivProfilePhoto)
 
-        // Subir a Firebase Storage
-        Toast.makeText(this, "Subiendo imagen...", Toast.LENGTH_SHORT).show()
-        viewModel.uploadProfilePhoto(uri)
+        // Mostrar diálogo de progreso
+        val progressDialog = SweetAlertDialog(this, SweetAlertDialog.PROGRESS_TYPE).apply {
+            progressHelper.barColor = android.graphics.Color.parseColor("#A5DC86")
+            titleText = "Subiendo imagen"
+            contentText = "Actualizando tu foto de perfil..."
+            setCancelable(false)
+            show()
+        }
 
+        // 🔥 Subir a Firebase Storage y ESPERAR el resultado
         lifecycleScope.launch {
-            kotlinx.coroutines.delay(2000)
-            loadUserData()
-            Toast.makeText(this@ProfileActivity, "Foto actualizada", Toast.LENGTH_SHORT).show()
+            val result = viewModel.uploadProfilePhoto(uri)
+
+            // Cerrar el diálogo de progreso
+            progressDialog.dismiss()
+
+            if (result.isSuccess) {
+                // Recargar los datos del usuario para obtener la URL actualizada
+                loadUserData()
+
+                // Pequeño delay para asegurar que la imagen se cargue
+                kotlinx.coroutines.delay(700)
+
+                // Mensaje de éxito
+                SweetAlertDialog(this@ProfileActivity, SweetAlertDialog.SUCCESS_TYPE)
+                    .setTitleText("¡Listo!")
+                    .setContentText("Foto de perfil actualizada correctamente")
+                    .setConfirmText("OK")
+                    .show()
+            } else {
+                // Mensaje de error
+                SweetAlertDialog(this@ProfileActivity, SweetAlertDialog.ERROR_TYPE)
+                    .setTitleText("Error")
+                    .setContentText("No se pudo actualizar la foto. Intenta de nuevo.")
+                    .setConfirmText("OK")
+                    .show()
+            }
         }
     }
 
@@ -252,7 +300,9 @@ class ProfileActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             viewModel.userProfile.collect { user ->
+                // Solo mostrar error si no es la primera carga y el usuario sigue siendo null
                 if (user != null) {
+                    isFirstLoad = false
                     Log.d("ProfileActivity", "Usuario: photoUrl=${user.photoUrl}")
 
                     tvName.text = user.name ?: "Nombre no disponible"
@@ -269,7 +319,8 @@ class ProfileActivity : AppCompatActivity() {
                     } else {
                         ivProfilePhoto.setImageResource(R.drawable.ic_profile_placeholder)
                     }
-                } else {
+                } else if (!isFirstLoad) {
+                    // Solo mostrar error si ya intentamos cargar antes
                     Toast.makeText(this@ProfileActivity, "Error cargando perfil", Toast.LENGTH_SHORT).show()
                 }
             }
@@ -280,41 +331,98 @@ class ProfileActivity : AppCompatActivity() {
         val dialogView = layoutInflater.inflate(R.layout.dialog_edit_profile, null)
         val etName = dialogView.findViewById<EditText>(R.id.et_name)
         val etEmail = dialogView.findViewById<EditText>(R.id.et_email)
+        val btnUpdate = dialogView.findViewById<androidx.appcompat.widget.AppCompatButton>(R.id.btn_update)
 
         etName.setText(tvName.text)
         etEmail.setText(tvEmail.text)
 
-        AlertDialog.Builder(this)
-            .setTitle("Editar Perfil")
+        // Crear diálogo sin título (ya que el layout tiene su propio título)
+        val dialog = AlertDialog.Builder(this)
             .setView(dialogView)
-            .setPositiveButton("Guardar") { _, _ ->
-                val newName = etName.text.toString().trim()
-                val newEmail = etEmail.text.toString().trim()
+            .setCancelable(true)
+            .create()
 
-                if (newName.isNotEmpty() && newEmail.isNotEmpty()) {
-                    viewModel.updateProfile(newName, newEmail)
-                    loadUserData()
-                    Toast.makeText(this, "Perfil actualizado", Toast.LENGTH_SHORT).show()
-                } else {
-                    Toast.makeText(this, "Completa todos los campos", Toast.LENGTH_SHORT).show()
+        // Configurar el botón de actualizar
+        btnUpdate.setOnClickListener {
+            val newName = etName.text.toString().trim()
+            val newEmail = etEmail.text.toString().trim()
+
+            if (newName.isNotEmpty() && newEmail.isNotEmpty()) {
+                dialog.dismiss()
+
+                // Mostrar progreso
+                val progressDialog = SweetAlertDialog(this, SweetAlertDialog.PROGRESS_TYPE).apply {
+                    progressHelper.barColor = android.graphics.Color.parseColor("#A5DC86")
+                    titleText = "Actualizando"
+                    contentText = "Guardando cambios..."
+                    setCancelable(false)
+                    show()
                 }
+
+                viewModel.updateProfile(newName, newEmail)
+
+                lifecycleScope.launch {
+                    kotlinx.coroutines.delay(1500)
+                    progressDialog.dismiss()
+                    loadUserData()
+
+                    // Mensaje de éxito
+                    SweetAlertDialog(this@ProfileActivity, SweetAlertDialog.SUCCESS_TYPE)
+                        .setTitleText("¡Perfecto!")
+                        .setContentText("Tu perfil ha sido actualizado")
+                        .setConfirmText("OK")
+                        .show()
+                }
+            } else {
+                SweetAlertDialog(this, SweetAlertDialog.WARNING_TYPE)
+                    .setTitleText("Campos vacíos")
+                    .setContentText("Por favor completa todos los campos")
+                    .setConfirmText("OK")
+                    .show()
             }
-            .setNegativeButton("Cancelar", null)
-            .show()
+        }
+
+        dialog.show()
     }
 
     private fun showDeleteDialog() {
-        AlertDialog.Builder(this)
-            .setTitle("Eliminar Perfil")
-            .setMessage("¿Estás seguro? Esto eliminará tu cuenta permanentemente.")
-            .setPositiveButton("Eliminar") { _, _ ->
+        SweetAlertDialog(this, SweetAlertDialog.WARNING_TYPE)
+            .setTitleText("¿Eliminar perfil?")
+            .setContentText("Esta acción eliminará tu cuenta permanentemente y no se puede deshacer")
+            .setConfirmText("Sí, eliminar")
+            .setConfirmClickListener { sDialog ->
+                sDialog.dismissWithAnimation()
+
+                // Mostrar progreso
+                val progressDialog = SweetAlertDialog(this, SweetAlertDialog.PROGRESS_TYPE).apply {
+                    progressHelper.barColor = android.graphics.Color.parseColor("#A5DC86")
+                    titleText = "Eliminando"
+                    contentText = "Eliminando tu cuenta..."
+                    setCancelable(false)
+                    show()
+                }
+
                 viewModel.deleteProfile()
-                auth.signOut()
-                startActivity(Intent(this, LoginActivity::class.java))
-                finish()
-                Toast.makeText(this, "Perfil eliminado", Toast.LENGTH_SHORT).show()
+
+                lifecycleScope.launch {
+                    kotlinx.coroutines.delay(1500)
+                    progressDialog.dismiss()
+                    auth.signOut()
+
+                    // Mensaje de confirmación
+                    SweetAlertDialog(this@ProfileActivity, SweetAlertDialog.SUCCESS_TYPE)
+                        .setTitleText("Cuenta eliminada")
+                        .setContentText("Tu perfil ha sido eliminado correctamente")
+                        .setConfirmText("OK")
+                        .setConfirmClickListener {
+                            it.dismiss()
+                            startActivity(Intent(this@ProfileActivity, LoginActivity::class.java))
+                            finish()
+                        }
+                        .show()
+                }
             }
-            .setNegativeButton("Cancelar", null)
+            .setCancelButton("Cancelar") { it.dismiss() }
             .show()
     }
 }

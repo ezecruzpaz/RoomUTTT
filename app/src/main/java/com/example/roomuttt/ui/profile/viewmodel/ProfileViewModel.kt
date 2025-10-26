@@ -41,17 +41,22 @@ class ProfileViewModel @Inject constructor(
             repository.deleteCurrentUser()
         }
     }
-    fun uploadProfilePhoto(imageUri: Uri) {
-        viewModelScope.launch {
-            val userId = repository.getCurrentUserFromAuth()?.uid ?: return@launch
-            val result = repository.uploadProfilePhoto(userId, imageUri)
 
-            if (result.isSuccess) {
-                Log.d("ProfileViewModel", "Foto subida exitosamente")
-                getUserProfile() // Recargar perfil
-            } else {
-                Log.e("ProfileViewModel", "Error subiendo foto: ${result.exceptionOrNull()?.message}")
-            }
+
+    // 🔥 CAMBIO: Retorna Result<String> en lugar de Result<Unit>
+    suspend fun uploadProfilePhoto(imageUri: Uri): Result<String> {
+        val userId = repository.getCurrentUserFromAuth()?.uid
+            ?: return Result.failure(Exception("Usuario no autenticado"))
+
+        val result = repository.uploadProfilePhoto(userId, imageUri)
+
+        if (result.isSuccess) {
+            Log.d("ProfileViewModel", "Foto subida exitosamente")
+            getUserProfile() // Recargar perfil
+        } else {
+            Log.e("ProfileViewModel", "Error subiendo foto: ${result.exceptionOrNull()?.message}")
         }
+
+        return result
     }
 }
