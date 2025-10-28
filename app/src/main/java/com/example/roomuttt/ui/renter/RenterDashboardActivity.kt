@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.widget.Button
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -13,6 +14,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.roomuttt.R
 import com.example.roomuttt.data.api.RoomApiService
 import com.example.roomuttt.domain.model.RoomData
+import com.example.roomuttt.ui.profile.ProfileActivity
 import com.example.roomuttt.ui.renter.adapter.RenterRoomAdapter
 import com.example.roomuttt.ui.room.CreateRoomActivity
 import com.google.android.material.bottomnavigation.BottomNavigationView
@@ -89,6 +91,11 @@ class RenterDashboardActivity : AppCompatActivity() {
     }
 
     private fun setupListeners() {
+
+        findViewById<ImageView>(R.id.iv_profile).setOnClickListener {
+            startActivity(Intent(this, ProfileActivity::class.java))
+        }
+
         btnAddRoom.setOnClickListener {
             startActivity(Intent(this, CreateRoomActivity::class.java))
         }
@@ -127,7 +134,6 @@ class RenterDashboardActivity : AppCompatActivity() {
             }
         }
     }
-
     private fun loadRooms() {
         val user = FirebaseAuth.getInstance().currentUser
         val uid = user?.uid

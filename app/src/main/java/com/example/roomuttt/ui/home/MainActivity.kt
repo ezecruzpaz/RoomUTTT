@@ -8,10 +8,12 @@ import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.widget.Button
+import android.widget.EditText
 import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
+import cn.pedant.SweetAlert.SweetAlertDialog
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
@@ -25,7 +27,6 @@ import com.example.roomuttt.R
 import com.example.roomuttt.ui.home.adapter.RoomAdapter
 import com.example.roomuttt.ui.home.viewmodel.MainViewModel
 import com.example.roomuttt.ui.profile.ProfileActivity
-import com.example.roomuttt.ui.room.CreateRoomActivity
 import com.example.roomuttt.ui.room.AllRoomsActivity
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
@@ -51,13 +52,12 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var ivProfile: ImageView
     private lateinit var ivNotifications: ImageView
     private lateinit var recyclerRooms: RecyclerView
-    private lateinit var btnViewMore: Button // Cambiado a Button y corregido el ID
+    private lateinit var btnViewMore: Button
     private lateinit var progressBar: ProgressBar
     private lateinit var tvNoRooms: TextView
     private lateinit var bottomNavigation: BottomNavigationView
     private lateinit var fusedLocationClient: FusedLocationProviderClient
 
-    // 🔥 Places API
     private lateinit var placesClient: PlacesClient
     private var sessionToken: AutocompleteSessionToken? = null
 
@@ -70,11 +70,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) {
-            Log.d(TAG, "✅ Permiso de ubicación concedido")
             enableMyLocation()
             getCurrentLocation()
         } else {
-            Log.w(TAG, "⚠️ Permiso de ubicación denegado")
             showPermissionDeniedDialog()
         }
     }
@@ -83,17 +81,15 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        Log.d(TAG, "📱 MainActivity iniciada")
-
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
-        // 🔥 Inicializar Places API
         if (!Places.isInitialized()) {
             Places.initialize(applicationContext, getString(R.string.google_maps_key))
         }
         placesClient = Places.createClient(this)
 
         initViews()
+        setupSearchViewStyle() // ✅ Configurar estilo ANTES de setupListeners
         setupListeners()
         setupRecyclerView()
         setupBottomNavigation()
@@ -102,10 +98,11 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         mapFragment.getMapAsync(this)
 
         observeViewModel()
-
         viewModel.loadRooms()
-
         checkAndRequestLocationPermission()
+
+
+
     }
 
     private fun initViews() {
@@ -113,7 +110,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         ivProfile = findViewById(R.id.iv_profile)
         ivNotifications = findViewById(R.id.iv_notifications)
         recyclerRooms = findViewById(R.id.recycler_rooms)
-        btnViewMore = findViewById(R.id.btn_view_more) // Corregido a btn_view_more
+        btnViewMore = findViewById(R.id.btn_view_more)
         progressBar = findViewById(R.id.progress_bar)
         tvNoRooms = findViewById(R.id.tv_no_rooms)
         bottomNavigation = findViewById(R.id.bottom_navigation)
@@ -122,10 +119,56 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         supportActionBar?.setDisplayHomeAsUpEnabled(false)
     }
 
+    private fun setupSearchViewStyle() {
+        try {
+            // ✅ Método 1: Usando IDs del sistema Android
+            val searchEditTextId = searchView.context.resources.getIdentifier(
+                "search_src_text",
+                "id",
+                searchView.context.packageName
+            )
+
+            if (searchEditTextId != 0) {
+                val searchEditText = searchView.findViewById<EditText>(searchEditTextId)
+                searchEditText?.apply {
+                    setTextColor(android.graphics.Color.BLACK)
+                    setHintTextColor(android.graphics.Color.GRAY)
+                    textSize = 14f
+                    Log.d(TAG, "✅ SearchView configurado correctamente")
+                }
+            } else {
+                // ✅ Método 2: Buscar recursivamente
+                findSearchEditText(searchView)?.apply {
+                    setTextColor(android.graphics.Color.BLACK)
+                    setHintTextColor(android.graphics.Color.GRAY)
+                    textSize = 14f
+                    Log.d(TAG, "✅ SearchView configurado con método alternativo")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error configurando SearchView: ${e.message}")
+        }
+    }
+
+    // ✅ Buscar el EditText recursivamente en el SearchView
+    private fun findSearchEditText(view: View): EditText? {
+        if (view is EditText) {
+            return view
+        }
+        if (view is android.view.ViewGroup) {
+            for (i in 0 until view.childCount) {
+                val result = findSearchEditText(view.getChildAt(i))
+                if (result != null) return result
+            }
+        }
+        return null
+    }
+
     private fun setupListeners() {
         searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
             override fun onQueryTextSubmit(query: String?): Boolean {
                 if (!query.isNullOrEmpty()) {
+                    Log.d(TAG, "🔍 Búsqueda enviada: '$query'")
                     searchPlaceAndRooms(query)
                     searchView.clearFocus()
                 }
@@ -134,6 +177,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
             override fun onQueryTextChange(newText: String?): Boolean {
                 if (newText.isNullOrEmpty()) {
+                    Log.d(TAG, "🔍 Búsqueda vacía - Regresando a ubicación actual")
                     viewModel.searchRooms("")
                 }
                 return true
@@ -172,16 +216,15 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 if (predictions.isNotEmpty()) {
                     val firstPrediction = predictions[0]
                     Log.d(TAG, "📍 Lugar encontrado: ${firstPrediction.getFullText(null)}")
-
                     fetchPlaceDetails(firstPrediction.placeId, query)
                 } else {
                     Log.w(TAG, "⚠️ No se encontraron lugares para '$query'")
                     viewModel.searchRooms(query)
-                    Toast.makeText(
-                        this,
-                        "No se encontró el lugar. Buscando en cuartos...",
-                        Toast.LENGTH_SHORT
-                    ).show()
+
+                    SweetAlertDialog(this, SweetAlertDialog.WARNING_TYPE)
+                        .setTitleText("Lugar no encontrado")
+                        .setContentText("No se encontró el lugar. Buscando en cuartos...")
+                        .show()
                 }
             }
             .addOnFailureListener { exception ->
@@ -203,11 +246,15 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 place.latLng?.let { latLng ->
                     Log.d(TAG, "🎯 Coordenadas obtenidas: ${latLng.latitude}, ${latLng.longitude}")
                     viewModel.updateLocationAndFilter(latLng.latitude, latLng.longitude)
-                    Toast.makeText(
-                        this,
-                        "📍 ${place.name ?: "Lugar encontrado"}",
-                        Toast.LENGTH_SHORT
-                    ).show()
+
+                    googleMap?.animateCamera(
+                        CameraUpdateFactory.newLatLngZoom(latLng, 11f)
+                    )
+
+                    SweetAlertDialog(this, SweetAlertDialog.SUCCESS_TYPE)
+                        .setTitleText("Ubicación encontrada")
+                        .setContentText(place.name ?: "Lugar encontrado")
+                        .show()
                 } ?: run {
                     Log.w(TAG, "⚠️ El lugar no tiene coordenadas")
                     viewModel.searchRooms(originalQuery)
@@ -222,22 +269,11 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private fun setupRecyclerView() {
         Log.d(TAG, "🔧 Configurando RecyclerView...")
 
-        roomAdapter = RoomAdapter { room ->
-            room.getLatLng()?.let { (lat, lng) ->
-                googleMap?.animateCamera(
-                    CameraUpdateFactory.newLatLngZoom(LatLng(lat, lng), 15f)
-                )
-                Toast.makeText(this, "📍 ${room.nombre}", Toast.LENGTH_SHORT).show()
-            }
-        }
-
         recyclerRooms.layoutManager = LinearLayoutManager(this)
-        recyclerRooms.adapter = roomAdapter
         recyclerRooms.setHasFixedSize(true)
-        // Asegurar que el RecyclerView no ocupe todo el espacio
-        recyclerRooms.isNestedScrollingEnabled = true // Ya está en XML, pero lo confirmamos
+        recyclerRooms.isNestedScrollingEnabled = true
 
-        Log.d(TAG, "✅ RecyclerView configurado en modo VERTICAL")
+        // ✅ El adapter se actualizará cuando observemos los cambios en observeViewModel()
     }
 
     private fun setupBottomNavigation() {
@@ -246,21 +282,24 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         bottomNavigation.setOnItemSelectedListener { item ->
             when (item.itemId) {
                 R.id.nav_home -> true
+
                 R.id.nav_rooms -> {
-                    startActivity(Intent(this, CreateRoomActivity::class.java))
-                    true
+                    val intent = Intent(this, AllRoomsActivity::class.java)
+                    intent.putExtra("allRooms", ArrayList(viewModel.getAllRooms()))
+                    startActivity(intent)
+                    false
                 }
                 R.id.nav_reservations -> {
                     Toast.makeText(this, "📅 Reservas próximamente", Toast.LENGTH_SHORT).show()
-                    true
+                    false
                 }
                 R.id.nav_map -> {
                     Toast.makeText(this, "🗺️ Ya estás en el mapa", Toast.LENGTH_SHORT).show()
-                    true
+                    false
                 }
                 R.id.nav_chat -> {
                     Toast.makeText(this, "💬 Chat próximamente", Toast.LENGTH_SHORT).show()
-                    true
+                    false
                 }
                 else -> false
             }
@@ -286,8 +325,28 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                     } else {
                         tvNoRooms.visibility = View.GONE
                         recyclerRooms.visibility = View.VISIBLE
-                        roomAdapter.submitList(rooms)
-                        Log.d(TAG, "✅ Lista actualizada con ${rooms.size} cuartos")
+
+                        // ✅ SIEMPRE obtener TODOS los cuartos cercanos
+                        val allRooms = viewModel.getAllRooms()
+
+                        // ✅ RECREAR el adapter cada vez que cambian los cuartos
+                        // Esto asegura que siempre tenga la lista completa actualizada
+                        roomAdapter = RoomAdapter(
+                            onRoomClick = { room ->
+                                room.getLatLng()?.let { (lat, lng) ->
+                                    googleMap?.animateCamera(
+                                        CameraUpdateFactory.newLatLngZoom(LatLng(lat, lng), 15f)
+                                    )
+                                    Toast.makeText(this@MainActivity, "📍 ${room.nombre}", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            allRooms = allRooms // ✅ Lista completa actualizada
+                        )
+
+                        recyclerRooms.adapter = roomAdapter
+                        roomAdapter.submitList(rooms) // Mostrar solo los 2 primeros
+
+                        Log.d(TAG, "✅ Lista actualizada con ${rooms.size} cuartos (de ${allRooms.size} totales)")
                     }
                 }
             }
@@ -311,6 +370,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             isMyLocationButtonEnabled = true
             isCompassEnabled = true
         }
+
+        val defaultLocation = LatLng(20.0910, -98.7624)
+        googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(defaultLocation, 11f))
 
         if (hasLocationPermission()) {
             enableMyLocation()
@@ -355,8 +417,19 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
                 if (location != null) {
                     Log.d(TAG, "📍 Ubicación obtenida: ${location.latitude}, ${location.longitude}")
+
                     viewModel.onLocationPermissionGranted(location.latitude, location.longitude)
-                    Toast.makeText(this, "📍 Ubicación obtenida", Toast.LENGTH_SHORT).show()
+                    googleMap?.animateCamera(
+                        CameraUpdateFactory.newLatLngZoom(
+                            LatLng(location.latitude, location.longitude),
+                            11f
+                        )
+                    )
+
+                    SweetAlertDialog(this, SweetAlertDialog.SUCCESS_TYPE)
+                        .setTitleText("Ubicación obtenida")
+                        .setContentText("Tu ubicación actual ha sido detectada")
+                        .show()
                 } else {
                     Log.w(TAG, "⚠️ Ubicación null")
                     useDefaultLocation()
@@ -370,8 +443,18 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     private fun useDefaultLocation() {
-        viewModel.updateLocationAndFilter(20.0910, -98.7624)
-        Toast.makeText(this, "📍 Ubicación predeterminada (Tula)", Toast.LENGTH_SHORT).show()
+        val defaultLat = 20.0910
+        val defaultLng = -98.7624
+        viewModel.updateLocationAndFilter(defaultLat, defaultLng)
+
+        googleMap?.animateCamera(
+            CameraUpdateFactory.newLatLngZoom(LatLng(defaultLat, defaultLng), 11f)
+        )
+
+        SweetAlertDialog(this)
+            .setTitleText("Ubicación predeterminada")
+            .setContentText("Se usará la ubicación de Tula")
+            .show()
     }
 
     private fun showPermissionRationaleDialog() {
@@ -401,6 +484,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     override fun onResume() {
         super.onResume()
+        bottomNavigation.selectedItemId = R.id.nav_home
+
         if (hasLocationPermission() && googleMap != null) {
             enableMyLocation()
         }

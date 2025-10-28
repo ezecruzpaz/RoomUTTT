@@ -13,7 +13,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:paddingBottom="80dp"> <!-- Espacio para la barra de navegación -->
+            android:paddingBottom="80dp">
 
             <!-- Header -->
             <RelativeLayout
@@ -73,8 +73,9 @@
                     android:id="@+id/search_view"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    app:queryHint="Buscar Universidad"
+                    app:queryHint="Buscar universidad o lugar"
                     app:iconifiedByDefault="false"
+                    app:queryBackground="@android:color/transparent"
                     android:background="@android:color/transparent" />
 
             </androidx.cardview.widget.CardView>
@@ -97,7 +98,6 @@
                         android:layout_width="match_parent"
                         android:layout_height="match_parent" />
 
-                    <!-- ProgressBar sobre el mapa -->
                     <ProgressBar
                         android:id="@+id/progress_bar"
                         android:layout_width="wrap_content"
@@ -109,7 +109,7 @@
 
             </androidx.cardview.widget.CardView>
 
-            <!-- 🔥 LISTA VERTICAL DE SOLO 2 CUARTOS -->
+            <!-- Lista de cuartos -->
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/recycler_rooms"
                 android:layout_width="match_parent"
@@ -120,23 +120,23 @@
                 android:nestedScrollingEnabled="true"
                 android:visibility="gone" />
 
-            <!-- 🔥 BOTÓN "VER MÁS" - Igual que "Ver Detalles", pequeño y centrado -->
+            <!-- Botón "Ver más" -->
             <Button
                 android:id="@+id/btn_view_more"
                 android:layout_width="wrap_content"
-            android:layout_height="36dp"
-            android:layout_marginHorizontal="16dp"
-            android:layout_gravity="center"
-            android:layout_marginTop="8dp"
-            android:layout_marginBottom="80dp"
-            android:paddingHorizontal="20dp"
-            android:text="📋 Ver más"
-            android:textColor="#FFFFFF"
-            android:backgroundTint="#000000"
-            android:textStyle="bold"
-            android:textSize="12sp"
-            android:visibility="gone"
-            style="@style/Widget.MaterialComponents.Button" />
+                android:layout_height="36dp"
+                android:layout_marginHorizontal="16dp"
+                android:layout_gravity="center"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="80dp"
+                android:paddingHorizontal="20dp"
+                android:text="Ver más"
+                android:textColor="#FFFFFF"
+                android:backgroundTint="#000000"
+                android:textStyle="bold"
+                android:textSize="12sp"
+                android:visibility="gone"
+                style="@style/Widget.MaterialComponents.Button" />
 
             <!-- Mensaje cuando no hay cuartos -->
             <TextView
@@ -144,7 +144,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_margin="16dp"
-                android:text="🏠 No hay cuartos disponibles en el radio de 20 km\n\nIntenta buscar otra ubicación"
+                android:text="No hay cuartos disponibles en el radio de 10 km\n\nIntenta buscar otra ubicación"
                 android:textSize="14sp"
                 android:textColor="#999999"
                 android:gravity="center"
@@ -155,7 +155,7 @@
 
     </ScrollView>
 
-    <!-- Barra de Navegación Inferior (Fixed al fondo) -->
+    <!-- Barra de Navegación Inferior -->
     <com.google.android.material.bottomnavigation.BottomNavigationView
         android:id="@+id/bottom_navigation"
         android:layout_width="match_parent"

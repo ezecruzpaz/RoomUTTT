@@ -7,4 +7,24 @@
     <string name="terms_text">
 1. Información Pública del Usuario\nAl registrarte y utilizar nuestra plataforma, aceptas que la información que proporciones –incluyendo nombre, fotografía de perfil, descripción y ubicación– sea visible públicamente por otros usuarios con el fin de facilitar el proceso de búsqueda y renta de habitaciones.\n\n2. Permisos de Cámara y Almacenamiento\nPara mejorar la experiencia de los usuarios y permitir la publicación de cuartos, la app solicita acceso a la cámara y almacenamiento de tu dispositivo. Estos permisos son necesarios para:\n• Capturar fotografías directamente desde la app.\n• Seleccionar imágenes guardadas en tu dispositivo para subir a tu perfil o publicaciones.\n• Almacenar temporalmente contenido visual relacionado con tus publicaciones.\nEl uso de estos permisos está limitado únicamente a funciones dentro de la plataforma y no se utilizarán con fines externos ni sin tu consentimiento.\n\n3. Uso de Datos\nLa app recopila datos para mejorar el servicio, como ubicación aproximada para mostrar cuartos cercanos. No compartimos datos personales con terceros sin consentimiento.
     </string>
+
+    <string name="room_details_title">Detalles del Cuarto en Renta</string>
+    <string name="back_button">Regresar</string>
+    <string name="room_images">Imágenes del cuarto</string>
+    <string name="image_indicator">Indicador de imagen</string>
+    <string name="star">Estrella</string>
+    <string name="services">Servicios</string>
+    <string name="description">Descripción</string>
+    <string name="location">Ubicación</string>
+    <string name="reviews">Reseñas</string>
+    <string name="contact">Contactar</string>
+    <string name="contact_owner">Contactar al arrendador</string>
+    <string name="wifi">Wifi</string>
+    <string name="parking">Estacionamiento</string>
+    <string name="kitchen">Cocina</string>
+    <string name="private_bathroom">Baño privado</string>
+    <string name="service_icon">Icono de servicio</string>
+    <string name="contact_button">Botón de contactar</string>
+
+
 </resources>

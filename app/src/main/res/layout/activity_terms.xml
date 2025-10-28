@@ -337,15 +337,33 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Si tienes preguntas o inquietudes sobre estas políticas de uso, puedes contactarnos a través de la sección de ayuda en la aplicación o mediante el correo electrónico soporte@roomu.com"
+                android:text="Si tienes preguntas o inquietudes sobre estas políticas de uso, puedes contactarnos a través de la sección de ayuda en la aplicación o mediante el correo electrónico soporteroomu@gmail.com"
                 android:textColor="#424242"
                 android:textSize="14sp"
                 android:lineSpacingExtra="4dp"
                 android:layout_marginBottom="24dp" />
 
+
+
+            <TextView
+                android:id="@+id/link_leer_mas"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="→ Leer más aquí"
+                android:textColor="#4285F4"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="24dp"
+                android:clickable="true"
+                android:focusable="true" />
+
         </LinearLayout>
 
     </ScrollView>
+
 
     <!-- Botón para aceptar las políticas -->
     <Button

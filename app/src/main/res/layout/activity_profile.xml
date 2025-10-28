@@ -134,40 +134,59 @@
 
             </LinearLayout>
 
-            <!-- Botones -->
-            <LinearLayout
+            <!-- Botón Editar (siempre visible) -->
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btn_edit"
                 android:layout_width="match_parent"
                 android:layout_height="50dp"
-                android:orientation="horizontal"
                 android:layout_marginBottom="16dp"
-                android:gravity="center_vertical">
+                android:background="@drawable/button_gray"
+                android:text="Editar"
+                android:textColor="@color/black"
+                android:textSize="14sp"
+                android:textAllCaps="false" />
 
-                <androidx.appcompat.widget.AppCompatButton
-                    android:id="@+id/btn_edit"
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:layout_marginEnd="8dp"
-                    android:background="@drawable/button_gray"
-                    android:text="Editar"
-                    android:textColor="@color/black"
-                    android:textSize="14sp"
-                    android:textAllCaps="false"
-                    android:padding="0dp" />
+            <!-- Botón Crear Arrendatario (solo cuando NO es arrendatario) -->
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btn_create_renter"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:layout_marginBottom="16dp"
+                android:background="@drawable/button_gray"
+                android:text="Crear cuenta de arrendador"
+                android:textColor="@color/black"
+                android:textSize="14sp"
+                android:textAllCaps="false"
+                android:visibility="gone" />
 
-                <androidx.appcompat.widget.AppCompatButton
-                    android:id="@+id/btn_create_renter"
+            <!-- Layout para cuando ES arrendatario -->
+            <LinearLayout
+                android:id="@+id/layout_renter_status"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:padding="16dp"
+                android:background="@drawable/input_background"
+                android:visibility="gone">
+
+                <TextView
                     android:layout_width="0dp"
-                    android:layout_height="match_parent"
+                    android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:layout_marginStart="8dp"
-                    android:background="@drawable/button_gray"
-                    android:text="Crear cuenta de arrendatario"
+                    android:text="Modo Arrendador"
                     android:textColor="@color/black"
-                    android:textSize="10sp"
-                    android:textAllCaps="false"
-                    android:padding="8dp"
-                    android:lineSpacingMultiplier="0.9" />
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/switch_renter_mode"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:checked="true"
+                    app:thumbTint="@color/black"
+                    app:trackTint="#CCCCCC" />
 
             </LinearLayout>
 

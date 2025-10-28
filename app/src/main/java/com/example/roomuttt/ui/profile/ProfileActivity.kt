@@ -27,16 +27,21 @@ import com.example.roomuttt.ui.auth.LoginActivity
 import com.example.roomuttt.ui.profile.viewmodel.ProfileViewModel
 import com.example.roomuttt.ui.renter.RenterRegistrationActivity
 import com.google.android.material.floatingactionbutton.FloatingActionButton
+import com.google.android.material.switchmaterial.SwitchMaterial
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import cn.pedant.SweetAlert.SweetAlertDialog
+import com.example.roomuttt.ui.home.MainActivity
+import com.example.roomuttt.ui.room.AllRoomsActivity
+import com.google.android.material.bottomnavigation.BottomNavigationView
 
 @AndroidEntryPoint
 class ProfileActivity : AppCompatActivity() {
 
     private val viewModel: ProfileViewModel by viewModels()
     private lateinit var auth: FirebaseAuth
+    private lateinit var bottomNavigation: BottomNavigationView
 
     // Vistas
     private lateinit var ivBack: ImageView
@@ -49,12 +54,17 @@ class ProfileActivity : AppCompatActivity() {
     private lateinit var btnEdit: Button
     private lateinit var btnCreateRenter: Button
     private lateinit var btnDeleteProfile: Button
+    private lateinit var layoutRenterStatus: LinearLayout
+    private lateinit var switchRenterMode: SwitchMaterial
 
     // URI temporal para la foto de cámara
     private var tempCameraUri: Uri? = null
 
     // Flag para evitar mensaje de error en primera carga
     private var isFirstLoad = true
+
+    // Flag para evitar loops en el listener del switch
+    private var isUpdatingSwitch = false
 
     // Launcher para seleccionar imagen de galería
     private val pickImageLauncher = registerForActivityResult(
@@ -105,6 +115,7 @@ class ProfileActivity : AppCompatActivity() {
         initViews()
         setupListeners()
         loadUserData()
+
     }
 
     private fun initViews() {
@@ -118,6 +129,8 @@ class ProfileActivity : AppCompatActivity() {
         btnEdit = findViewById(R.id.btn_edit)
         btnCreateRenter = findViewById(R.id.btn_create_renter)
         btnDeleteProfile = findViewById(R.id.btn_delete_profile)
+        layoutRenterStatus = findViewById(R.id.layout_renter_status)
+        switchRenterMode = findViewById(R.id.switch_renter_mode)
 
         tvTitle.text = "Perfil"
     }
@@ -140,7 +153,91 @@ class ProfileActivity : AppCompatActivity() {
             showEditDialog()
         }
 
-        val btnCreateRenter = findViewById<androidx.appcompat.widget.AppCompatButton>(R.id.btn_create_renter)
+        // Observar el estado de arrendatario
+        lifecycleScope.launch {
+            viewModel.isRenter.collect { isRenter ->
+                isUpdatingSwitch = true
+
+                if (isRenter) {
+                    // Ocultar botón y mostrar switch
+                    btnCreateRenter.visibility = android.view.View.GONE
+                    layoutRenterStatus.visibility = android.view.View.VISIBLE
+                    switchRenterMode.isChecked = true
+                } else {
+                    // Mostrar botón
+                    btnCreateRenter.visibility = android.view.View.VISIBLE
+                    layoutRenterStatus.visibility = android.view.View.GONE
+                    switchRenterMode.isChecked = false
+                }
+
+                isUpdatingSwitch = false
+            }
+        }
+
+        // Listener para el switch de modo arrendatario (SOLO DESACTIVAR)
+        switchRenterMode.setOnCheckedChangeListener { _, isChecked ->
+            // Ignorar cambios automáticos del observer
+            if (isUpdatingSwitch) return@setOnCheckedChangeListener
+
+            if (!isChecked) {
+                // Cuando se desactiva, confirmar y redirigir
+                SweetAlertDialog(this, SweetAlertDialog.WARNING_TYPE)
+                    .setTitleText("¿Desactivar modo arrendatario?")
+                    .setContentText("Dejarás de ver y publicar propiedades. Podrás reactivarlo cuando quieras desde tu perfil.")
+                    .setConfirmText("Sí, desactivar")
+                    .setConfirmClickListener { dialog ->
+                        dialog.dismissWithAnimation()
+
+                        // Mostrar progreso
+                        val progressDialog = SweetAlertDialog(this, SweetAlertDialog.PROGRESS_TYPE).apply {
+                            progressHelper.barColor = android.graphics.Color.parseColor("#A5DC86")
+                            titleText = "Desactivando"
+                            contentText = "Eliminando cuenta de arrendatario..."
+                            setCancelable(false)
+                            show()
+                        }
+
+                        // Desactivar modo arrendatario en Firebase (elimina el documento)
+                        lifecycleScope.launch {
+                            viewModel.disableRenterMode()
+
+                            kotlinx.coroutines.delay(1000)
+                            progressDialog.dismiss()
+
+                            // Redirigir al MainActivity
+                            val intent = Intent(this@ProfileActivity, MainActivity::class.java)
+                            intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+                            startActivity(intent)
+                            finish()
+                        }
+                    }
+                    .setCancelButton("Cancelar") { dialog ->
+                        // Si cancela, volver a activar el switch
+                        isUpdatingSwitch = true
+                        switchRenterMode.isChecked = true
+                        isUpdatingSwitch = false
+                        dialog.dismiss()
+                    }
+                    .show()
+            } else {
+                // Si intenta activar el switch, redirigir al registro
+                isUpdatingSwitch = true
+                switchRenterMode.isChecked = false
+                isUpdatingSwitch = false
+
+                SweetAlertDialog(this, SweetAlertDialog.NORMAL_TYPE)
+                    .setTitleText("Crear cuenta de arrendatario")
+                    .setContentText("Para activar el modo arrendatario, necesitas completar el registro")
+                    .setConfirmText("Ir al registro")
+                    .setConfirmClickListener {
+                        it.dismiss()
+                        startActivity(Intent(this, RenterRegistrationActivity::class.java))
+                    }
+                    .setCancelButton("Cancelar") { it.dismiss() }
+                    .show()
+            }
+        }
+
         btnCreateRenter.setOnClickListener {
             startActivity(Intent(this, RenterRegistrationActivity::class.java))
         }
@@ -264,7 +361,7 @@ class ProfileActivity : AppCompatActivity() {
             show()
         }
 
-        // 🔥 Subir a Firebase Storage y ESPERAR el resultado
+        // Subir a Firebase Storage y ESPERAR el resultado
         lifecycleScope.launch {
             val result = viewModel.uploadProfilePhoto(uri)
 
@@ -383,6 +480,38 @@ class ProfileActivity : AppCompatActivity() {
         }
 
         dialog.show()
+    }
+
+
+    private fun setupBottomNavigation() {
+        bottomNavigation.selectedItemId = R.id.nav_home
+
+        bottomNavigation.setOnItemSelectedListener { item ->
+            when (item.itemId) {
+                R.id.nav_home -> {
+                    startActivity(Intent(this, MainActivity::class.java))
+                    true
+                }
+
+                R.id.nav_rooms -> {
+                    startActivity(Intent(this, AllRoomsActivity::class.java))
+                    true
+                }
+                R.id.nav_reservations -> {
+                    Toast.makeText(this, "📅 Reservas próximamente", Toast.LENGTH_SHORT).show()
+                    true
+                }
+                R.id.nav_map -> {
+                    startActivity(Intent(this, AllRoomsActivity::class.java))
+                    true
+                }
+                R.id.nav_chat -> {
+                    Toast.makeText(this, "💬 Chat próximamente", Toast.LENGTH_SHORT).show()
+                    true
+                }
+                else -> false
+            }
+        }
     }
 
     private fun showDeleteDialog() {

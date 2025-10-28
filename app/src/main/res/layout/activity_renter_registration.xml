@@ -27,7 +27,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Convertirse en Arrendatario"
+            android:text="Convertirse en Arrendador"
             android:textColor="@color/black"
             android:textSize="18sp"
         android:textStyle="bold"
@@ -67,7 +67,7 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
                 android:layout_marginBottom="24dp"
-            android:text="Completa los siguientes datos para convertirte en arrendatario."
+            android:text="Completa los siguientes datos para convertirte en arrendador."
             android:textColor="@color/black"
             android:textSize="16sp" />
 
@@ -133,7 +133,7 @@
             android:layout_height="56dp"
             android:layout_marginTop="16dp"
             android:background="@drawable/button_black_rounded"
-            android:text="Convertirse en Arrendatario"
+            android:text="Convertirse en Arrendador"
             android:textAllCaps="false"
             android:textColor="@color/white"
             android:textSize="18sp"

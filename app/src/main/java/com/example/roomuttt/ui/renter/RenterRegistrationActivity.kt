@@ -2,6 +2,7 @@ package com.example.roomuttt.ui.renter
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageView
@@ -12,14 +13,18 @@ import com.example.roomuttt.R
 import com.example.roomuttt.ui.renter.viewmodel.RenterViewModel
 import com.google.firebase.auth.FirebaseAuth
 import cn.pedant.SweetAlert.SweetAlertDialog
+import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 @AndroidEntryPoint
 class RenterRegistrationActivity : AppCompatActivity() {
 
     private val viewModel: RenterViewModel by viewModels()
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
+    private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance() // 🆕
+
 
     private lateinit var etNombreCompleto: EditText
     private lateinit var etTelefono: EditText
@@ -68,10 +73,35 @@ class RenterRegistrationActivity : AppCompatActivity() {
     }
 
     private fun prefillName() {
-        val user = auth.currentUser
-        user?.let {
-            val displayName = user.displayName ?: user.email?.split("@")?.first() ?: "Usuario"
-            etNombreCompleto.setText(displayName)
+        lifecycleScope.launch {
+            try {
+                val user = auth.currentUser
+                if (user != null) {
+                    val uid = user.uid
+
+                    // 🔥 Obtener nombre desde Firestore
+                    val userDoc = firestore.collection("users")
+                        .document(uid)
+                        .get()
+                        .await()
+
+                    val nameFromFirestore = userDoc.getString("name")
+
+                    val finalName = if (!nameFromFirestore.isNullOrBlank()) {
+                        nameFromFirestore
+                    } else {
+                        user.displayName ?: user.email?.split("@")?.first() ?: "Usuario"
+                    }
+
+                    etNombreCompleto.setText(finalName)
+                    Log.d("RenterRegistration", "✅ Nombre cargado: $finalName")
+                }
+            } catch (e: Exception) {
+                Log.e("RenterRegistration", "❌ Error: ${e.message}")
+                auth.currentUser?.let {
+                    etNombreCompleto.setText(it.displayName ?: it.email?.split("@")?.first() ?: "Usuario")
+                }
+            }
         }
     }
 

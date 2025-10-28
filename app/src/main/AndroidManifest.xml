@@ -96,6 +96,14 @@
             </intent-filter>
         </activity>
 
+        <!-- Nueva Actividad de Detalles del Cuarto -->
+        <activity
+            android:name=".ui.room.RoomDetailActivity"
+            android:exported="false"
+            android:theme="@style/Theme.RoomUTTT" />
+
+
+
         <!-- API Key de Google Maps -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"

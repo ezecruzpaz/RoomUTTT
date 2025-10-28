@@ -40,15 +40,16 @@ class MainViewModel @Inject constructor(
     private val _currentLocation = MutableStateFlow<LatLng?>(null)
     val currentLocation: StateFlow<LatLng?> = _currentLocation.asStateFlow()
 
-    // 🔥 Mostrar botón "Ver más" (siempre activado si hay más de 2 cuartos)
+    // 🔥 Mostrar botón "Ver más"
     private val _showViewMoreButton = MutableStateFlow(false)
     val showViewMoreButton: StateFlow<Boolean> = _showViewMoreButton.asStateFlow()
 
     // 🔥 Radio de búsqueda en kilómetros
-    private val searchRadiusKm = 20.0
+    private val searchRadiusKm = 10.0
 
     private var googleMap: GoogleMap? = null
-    private var isSearchActive = false // Controla si hay búsqueda activa
+    private var isSearchActive = false
+    private var hasLocationPermission = false // ✅ Nueva bandera
 
     // 🔥 Cargar todos los cuartos desde la API
     fun loadRooms() {
@@ -64,16 +65,16 @@ class MainViewModel @Inject constructor(
 
                     if (roomsResponse.isSuccess && !roomsResponse.result.isNullOrEmpty()) {
                         _allRooms.value = roomsResponse.result
+                        Log.d(TAG, "✅ ${roomsResponse.result.size} cuartos cargados totales")
 
-                        // Mostrar siempre solo los primeros 2 cuartos
-                        val roomsToShow = _allRooms.value.take(2)
-                        _rooms.value = roomsToShow
-
-                        // Activar botón "Ver más" si hay más de 2 cuartos
-                        _showViewMoreButton.value = _allRooms.value.size > 2
-
-                        Log.d(TAG, "✅ ${roomsResponse.result.size} cuartos cargados, mostrando ${roomsToShow.size}")
-                        Log.d(TAG, "🔘 Botón Ver Más: ${_showViewMoreButton.value}")
+                        // ✅ NO MOSTRAR NADA HASTA TENER UBICACIÓN
+                        if (hasLocationPermission && _currentLocation.value != null) {
+                            filterByCurrentLocation()
+                        } else {
+                            Log.d(TAG, "⏳ Esperando ubicación del usuario...")
+                            _rooms.value = emptyList()
+                            _showViewMoreButton.value = false
+                        }
 
                         // Actualizar marcadores en el mapa
                         updateMapMarkers()
@@ -94,29 +95,80 @@ class MainViewModel @Inject constructor(
         }
     }
 
+    // ✅ Filtrar por ubicación actual
+    private fun filterByCurrentLocation() {
+        val location = _currentLocation.value ?: return
+
+        val nearbyRooms = _allRooms.value.filter { room ->
+            val distance = room.distanceFrom(location.latitude, location.longitude)
+            distance != null && distance <= searchRadiusKm
+        }.sortedBy { it.distanceFrom(location.latitude, location.longitude) }
+
+        val roomsToShow = nearbyRooms.take(2)
+        _rooms.value = roomsToShow
+        _showViewMoreButton.value = nearbyRooms.size > 2
+
+        Log.d(TAG, "📍 Ubicación: ${location.latitude}, ${location.longitude}")
+        Log.d(TAG, "🏠 ${nearbyRooms.size} cuartos en radio de ${searchRadiusKm}km")
+        Log.d(TAG, "📦 Mostrando ${roomsToShow.size} cuartos")
+        Log.d(TAG, "🔘 Botón Ver Más: ${_showViewMoreButton.value}")
+
+        if (nearbyRooms.isEmpty()) {
+            Log.w(TAG, "⚠️ No hay cuartos cerca de tu ubicación")
+        }
+    }
+
     // 🔥 Buscar cuartos por nombre o ubicación
     fun searchRooms(query: String) {
         viewModelScope.launch {
             if (query.isEmpty()) {
                 isSearchActive = false
+                Log.d(TAG, "🔍 Búsqueda vacía - Volviendo a ubicación actual")
 
-                val roomsToShow = _allRooms.value.take(2)
-                _rooms.value = roomsToShow
-                _showViewMoreButton.value = _allRooms.value.size > 2
+                if (hasLocationPermission && _currentLocation.value != null) {
+                    val currentLocation = _currentLocation.value!!
 
-                Log.d(TAG, "🔍 Búsqueda vacía - Mostrando ${roomsToShow.size} cuartos")
-                Log.d(TAG, "🔘 Botón Ver Más: ${_showViewMoreButton.value}")
+                    // ✅ PRIMERO: Limpiar el mapa completamente
+                    googleMap?.clear()
 
-                googleMap?.let { map ->
-                    map.clear()
-                    _currentLocation.value?.let { location ->
-                        drawSearchRadius(map, location)
+                    // ✅ SEGUNDO: Filtrar cuartos por ubicación actual
+                    filterByCurrentLocation()
+
+                    // ✅ TERCERO: Obtener cuartos cercanos
+                    val nearbyRooms = _allRooms.value.filter { room ->
+                        val distance = room.distanceFrom(currentLocation.latitude, currentLocation.longitude)
+                        distance != null && distance <= searchRadiusKm
                     }
-                    updateMapMarkers(_allRooms.value)
+
+                    // ✅ CUARTO: Redibujar todo en el mapa
+                    googleMap?.let { map ->
+                        // Dibujar círculo de búsqueda
+                        drawSearchRadius(map, currentLocation)
+
+                        // Actualizar marcadores de cuartos cercanos
+                        updateMapMarkers(nearbyRooms)
+
+                        // Mover cámara de vuelta a ubicación actual
+                        map.animateCamera(
+                            CameraUpdateFactory.newLatLngZoom(currentLocation, 11f),
+                            1000,
+                            null
+                        )
+                    }
+
+                    Log.d(TAG, "✅ Regresado a ubicación actual: ${nearbyRooms.size} cuartos cercanos")
+
+                } else {
+                    // Sin permiso de ubicación o sin ubicación
+                    _rooms.value = emptyList()
+                    _showViewMoreButton.value = false
+                    googleMap?.clear()
                 }
+
                 return@launch
             }
 
+            // ✅ Si hay búsqueda activa
             isSearchActive = true
 
             val filtered = _allRooms.value.filter { room ->
@@ -130,16 +182,17 @@ class MainViewModel @Inject constructor(
 
             Log.d(TAG, "🔍 Búsqueda: '$query' - ${filtered.size} resultados totales")
             Log.d(TAG, "📦 Mostrando ${roomsToShow.size} cuartos")
-            Log.d(TAG, "🔘 Botón Ver Más: ${_showViewMoreButton.value}")
 
             if (filtered.isNotEmpty()) {
                 filtered.first().getLatLng()?.let { (lat, lng) ->
-                    Log.d(TAG, "📍 Centrando mapa en: $lat, $lng")
+                    Log.d(TAG, "📍 Centrando mapa en primer resultado: $lat, $lng")
                     updateLocationAndFilter(lat, lng, filtered)
                 }
             } else {
                 Log.w(TAG, "⚠️ No se encontraron cuartos con '$query'")
                 googleMap?.clear()
+                _rooms.value = emptyList()
+                _showViewMoreButton.value = false
             }
         }
     }
@@ -163,11 +216,11 @@ class MainViewModel @Inject constructor(
         Log.d(TAG, "📍 Ubicación actualizada: $lat, $lng")
         Log.d(TAG, "🏠 ${nearbyRooms.size} cuartos en radio de ${searchRadiusKm}km")
         Log.d(TAG, "📦 Mostrando ${roomsToShow.size} cuartos")
-        Log.d(TAG, "🔘 Botón Ver Más: ${_showViewMoreButton.value}")
 
         googleMap?.let { map ->
             map.clear()
-            map.animateCamera(CameraUpdateFactory.newLatLngZoom(location, 13f), 1000, null)
+            // ✅ ZOOM 11 PARA VER TODO EL RADIO
+            map.animateCamera(CameraUpdateFactory.newLatLngZoom(location, 11f), 1000, null)
             drawSearchRadius(map, location)
             updateMapMarkers(nearbyRooms)
         }
@@ -195,7 +248,14 @@ class MainViewModel @Inject constructor(
     // 🔥 Actualizar marcadores en el mapa
     private fun updateMapMarkers(roomsToShow: List<RoomData>? = null) {
         googleMap?.let { map ->
-            val rooms = roomsToShow ?: _allRooms.value
+            // ✅ Solo mostrar marcadores de cuartos cercanos, no todos
+            val rooms = roomsToShow ?: (_currentLocation.value?.let { location ->
+                _allRooms.value.filter { room ->
+                    val distance = room.distanceFrom(location.latitude, location.longitude)
+                    distance != null && distance <= searchRadiusKm
+                }
+            } ?: emptyList())
+
             rooms.forEach { room ->
                 room.getLatLng()?.let { (lat, lng) ->
                     map.addMarker(
@@ -221,21 +281,22 @@ class MainViewModel @Inject constructor(
             isTiltGesturesEnabled = true
         }
 
-        if (_allRooms.value.isNotEmpty()) {
-            updateMapMarkers()
-        }
-
         _currentLocation.value?.let { location ->
-            googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 13f))
+            // ✅ ZOOM 11 INICIAL
+            googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 11f))
             drawSearchRadius(googleMap, location)
+            updateMapMarkers()
         } ?: run {
+            // ✅ Ubicación predeterminada con ZOOM 11
             val tula = LatLng(20.0910, -98.7624)
-            googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(tula, 12f))
+            googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(tula, 11f))
         }
     }
 
     // 🔥 Cuando se concede permiso de ubicación
     fun onLocationPermissionGranted(lat: Double, lng: Double) {
+        hasLocationPermission = true // ✅ Marcar que tenemos permiso
+
         if (!isSearchActive) {
             updateLocationAndFilter(lat, lng)
         } else {
@@ -244,6 +305,14 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    // 🔥 Obtener todos los cuartos (para pantalla "Ver más")
-    fun getAllRooms(): List<RoomData> = _allRooms.value
+    // 🔥 Obtener todos los cuartos cercanos (para pantalla "Ver más")
+    fun getAllRooms(): List<RoomData> {
+        val location = _currentLocation.value ?: return emptyList()
+
+        // ✅ Solo devolver cuartos dentro del radio
+        return _allRooms.value.filter { room ->
+            val distance = room.distanceFrom(location.latitude, location.longitude)
+            distance != null && distance <= searchRadiusKm
+        }.sortedBy { it.distanceFrom(location.latitude, location.longitude) }
+    }
 }
