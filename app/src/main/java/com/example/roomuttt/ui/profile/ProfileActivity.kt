@@ -34,7 +34,10 @@ import kotlinx.coroutines.launch
 import cn.pedant.SweetAlert.SweetAlertDialog
 import com.example.roomuttt.ui.home.MainActivity
 import com.example.roomuttt.ui.room.AllRoomsActivity
+import com.google.android.gms.maps.model.LatLng
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 
 @AndroidEntryPoint
 class ProfileActivity : AppCompatActivity() {
@@ -42,6 +45,9 @@ class ProfileActivity : AppCompatActivity() {
     private val viewModel: ProfileViewModel by viewModels()
     private lateinit var auth: FirebaseAuth
     private lateinit var bottomNavigation: BottomNavigationView
+
+    // ✅ ViewModel compartido para obtener los cuartos
+    private val mainViewModel: com.example.roomuttt.ui.home.viewmodel.MainViewModel by viewModels()
 
     // Vistas
     private lateinit var ivBack: ImageView
@@ -114,10 +120,23 @@ class ProfileActivity : AppCompatActivity() {
 
         initViews()
         setupListeners()
+        setupBottomNavigation()
         loadUserData()
 
-    }
+        // ✅ Cargar cuartos - la ubicación ya se cargó en el init del ViewModel
+        lifecycleScope.launch {
+            mainViewModel.loadRooms()
 
+            // ✅ Esperar a que se carguen
+            mainViewModel.allRooms.first { it.isNotEmpty() }
+
+            // ✅ Aplicar filtro con ubicación guardada
+            mainViewModel.currentLocation.value?.let { location ->
+                mainViewModel.updateLocationAndFilter(location.latitude, location.longitude)
+                Log.d("ProfileActivity", "✅ Filtro aplicado: ${location.latitude}, ${location.longitude}")
+            }
+        }
+    }
     private fun initViews() {
         ivBack = findViewById(R.id.iv_back)
         tvTitle = findViewById(R.id.tv_title)
@@ -131,6 +150,7 @@ class ProfileActivity : AppCompatActivity() {
         btnDeleteProfile = findViewById(R.id.btn_delete_profile)
         layoutRenterStatus = findViewById(R.id.layout_renter_status)
         switchRenterMode = findViewById(R.id.switch_renter_mode)
+        bottomNavigation = findViewById(R.id.bottom_navigation) // ✅ ID correcto del XML
 
         tvTitle.text = "Perfil"
     }
@@ -482,38 +502,71 @@ class ProfileActivity : AppCompatActivity() {
         dialog.show()
     }
 
-
     private fun setupBottomNavigation() {
         bottomNavigation.selectedItemId = R.id.nav_home
 
         bottomNavigation.setOnItemSelectedListener { item ->
             when (item.itemId) {
                 R.id.nav_home -> {
-                    startActivity(Intent(this, MainActivity::class.java))
+                    // ✅ Verificar si es arrendatario para redirigir correctamente
+                    lifecycleScope.launch {
+                        val isRenter = viewModel.isRenter.value
+
+                        val intent = if (isRenter) {
+                            // Si es arrendatario, ir al Dashboard de Arrendatario
+                            Intent(this@ProfileActivity, com.example.roomuttt.ui.renter.RenterDashboardActivity::class.java)
+                        } else {
+                            // Si es usuario normal, ir a MainActivity
+                            Intent(this@ProfileActivity, MainActivity::class.java)
+                        }
+
+                        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                        startActivity(intent)
+                        finish()
+                    }
                     true
                 }
 
                 R.id.nav_rooms -> {
-                    startActivity(Intent(this, AllRoomsActivity::class.java))
+                    // Solo para usuarios normales
+                    lifecycleScope.launch {
+                        val isRenter = viewModel.isRenter.value
+
+                        if (isRenter) {
+                            Toast.makeText(
+                                this@ProfileActivity,
+                                "Como arrendatario, ve a 'Inicio' para ver tus cuartos",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        } else {
+                            val filteredRooms = mainViewModel.getAllRooms()
+
+                            if (filteredRooms.isNotEmpty()) {
+                                val intent = Intent(this@ProfileActivity, AllRoomsActivity::class.java)
+                                intent.putExtra("allRooms", ArrayList(filteredRooms))
+                                startActivity(intent)
+                                finish()
+                            } else {
+                                Toast.makeText(
+                                    this@ProfileActivity,
+                                    "No hay cuartos disponibles en tu área",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
+                    }
                     true
                 }
-                R.id.nav_reservations -> {
-                    Toast.makeText(this, "📅 Reservas próximamente", Toast.LENGTH_SHORT).show()
-                    true
-                }
-                R.id.nav_map -> {
-                    startActivity(Intent(this, AllRoomsActivity::class.java))
-                    true
-                }
+
                 R.id.nav_chat -> {
                     Toast.makeText(this, "💬 Chat próximamente", Toast.LENGTH_SHORT).show()
-                    true
+                    false
                 }
+
                 else -> false
             }
         }
     }
-
     private fun showDeleteDialog() {
         SweetAlertDialog(this, SweetAlertDialog.WARNING_TYPE)
             .setTitleText("¿Eliminar perfil?")
@@ -553,5 +606,11 @@ class ProfileActivity : AppCompatActivity() {
             }
             .setCancelButton("Cancelar") { it.dismiss() }
             .show()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // ✅ No seleccionar ningún item al volver a la actividad
+        bottomNavigation.menu.setGroupCheckable(0, true, false)
     }
 }

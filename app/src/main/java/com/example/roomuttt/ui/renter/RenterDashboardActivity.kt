@@ -14,8 +14,10 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.roomuttt.R
 import com.example.roomuttt.data.api.RoomApiService
 import com.example.roomuttt.domain.model.RoomData
+import com.example.roomuttt.ui.home.adapter.RoomAdapter
 import com.example.roomuttt.ui.profile.ProfileActivity
 import com.example.roomuttt.ui.renter.adapter.RenterRoomAdapter
+import com.example.roomuttt.ui.room.AllRoomsActivity
 import com.example.roomuttt.ui.room.CreateRoomActivity
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.firebase.auth.FirebaseAuth
@@ -88,10 +90,10 @@ class RenterDashboardActivity : AppCompatActivity() {
         recyclerView.layoutManager = LinearLayoutManager(this)
         adapter = RenterRoomAdapter(filteredRooms)
         recyclerView.adapter = adapter
+
     }
 
     private fun setupListeners() {
-
         findViewById<ImageView>(R.id.iv_profile).setOnClickListener {
             startActivity(Intent(this, ProfileActivity::class.java))
         }
@@ -124,16 +126,43 @@ class RenterDashboardActivity : AppCompatActivity() {
             applyFilter()
         }
 
+        // ✅ NUEVO: Setup del Bottom Navigation
         bottomNavigation.setOnItemSelectedListener { item ->
             when (item.itemId) {
-                R.id.nav_home -> true
-                R.id.nav_rooms -> true
-                R.id.nav_map -> true
-                R.id.nav_chat -> true
+                R.id.nav_home -> {
+                    // Ya estamos en home (Dashboard)
+                    true
+                }
+
+                R.id.nav_rooms -> {
+                    // Navegar a AllRoomsActivity con los cuartos del arrendatario
+                    val intent = Intent(this, AllRoomsActivity::class.java)
+
+                    // Pasar los cuartos del arrendatario actual
+                    val currentRooms = ArrayList<RoomData>()
+                    currentRooms.addAll(allRooms)
+                    intent.putExtra("allRooms", currentRooms)
+
+                    // ✅ Flag para indicar que son cuartos del arrendatario
+                    intent.putExtra("isRenterView", true)
+
+                    // ✅ NUEVO: Indicar que venimos desde RenterDashboard
+                    intent.putExtra("fromRenterDashboard", true)
+
+                    startActivity(intent)
+                    false
+                }
+
+                R.id.nav_chat -> {
+                    Toast.makeText(this, "💬 Chat próximamente", Toast.LENGTH_SHORT).show()
+                    false
+                }
+
                 else -> false
             }
         }
     }
+
     private fun loadRooms() {
         val user = FirebaseAuth.getInstance().currentUser
         val uid = user?.uid

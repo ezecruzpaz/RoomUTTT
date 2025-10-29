@@ -8,14 +8,7 @@
         android:id="@+id/nav_rooms"
         android:icon="@drawable/ic_rooms"
         android:title="Cuartos" />
-    <item
-        android:id="@+id/nav_reservations"
-        android:icon="@drawable/ic_bookmark"
-        android:title="Reservas" />
-    <item
-        android:id="@+id/nav_map"
-        android:icon="@drawable/ic_map"
-        android:title="Mapa" />
+
     <item
         android:id="@+id/nav_chat"
         android:icon="@drawable/ic_chat"

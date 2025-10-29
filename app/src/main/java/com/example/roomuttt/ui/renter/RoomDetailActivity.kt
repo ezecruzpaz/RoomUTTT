@@ -11,11 +11,14 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import androidx.viewpager2.widget.ViewPager2
 import com.bumptech.glide.Glide
 import com.example.roomuttt.R
 import com.example.roomuttt.domain.model.RoomData
+import com.example.roomuttt.ui.home.MainActivity
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
@@ -26,6 +29,8 @@ import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import java.util.Locale
 
 @AndroidEntryPoint
@@ -34,6 +39,8 @@ class RoomDetailActivity : AppCompatActivity(), OnMapReadyCallback {
     private val TAG = "RoomDetailActivity"
     private var room: RoomData? = null
     private var googleMap: GoogleMap? = null
+    private val mainViewModel: com.example.roomuttt.ui.home.viewmodel.MainViewModel by viewModels()
+
 
     // Views
     private lateinit var ivBack: ImageView
@@ -55,7 +62,6 @@ class RoomDetailActivity : AppCompatActivity(), OnMapReadyCallback {
         val allRooms = intent.getSerializableExtra("allRooms") as? ArrayList<RoomData>
 
         if (roomId == null || allRooms == null) {
-            Toast.makeText(this, "Error: No se encontró el cuarto", Toast.LENGTH_SHORT).show()
             finish()
             return
         }
@@ -63,7 +69,7 @@ class RoomDetailActivity : AppCompatActivity(), OnMapReadyCallback {
         room = allRooms.find { it.id == roomId }
 
         if (room == null) {
-            Toast.makeText(this, "Error: Cuarto no encontrado", Toast.LENGTH_SHORT).show()
+
             Log.e(TAG, "❌ No se encontró el cuarto con ID: $roomId")
             finish()
             return
@@ -76,6 +82,21 @@ class RoomDetailActivity : AppCompatActivity(), OnMapReadyCallback {
         setupData()
         setupListeners()
         setupBottomNavigation()
+
+
+        // ✅ NUEVO: Cargar cuartos en segundo plano
+        lifecycleScope.launch {
+            mainViewModel.loadRooms()
+
+            // Esperar a que se carguen
+            mainViewModel.allRooms.first { it.isNotEmpty() }
+
+            // Aplicar filtro con ubicación guardada
+            mainViewModel.currentLocation.value?.let { location ->
+                mainViewModel.updateLocationAndFilter(location.latitude, location.longitude)
+                Log.d(TAG, "✅ Filtro aplicado: ${location.latitude}, ${location.longitude}")
+            }
+        }
     }
 
     private fun initViews() {
@@ -272,21 +293,39 @@ class RoomDetailActivity : AppCompatActivity(), OnMapReadyCallback {
         bottomNavigation.setOnItemSelectedListener { item ->
             when (item.itemId) {
                 R.id.nav_home -> {
+                    // ✅ Regresar a MainActivity (Home)
+                    val intent = Intent(this, MainActivity::class.java)
+                    intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                    startActivity(intent)
                     finish()
                     true
                 }
+
                 R.id.nav_rooms -> {
-                    Toast.makeText(this, "Cuartos", Toast.LENGTH_SHORT).show()
-                    false
+                    // ✅ Ir a AllRoomsActivity con cuartos filtrados
+                    val filteredRooms = mainViewModel.getAllRooms()
+
+                    if (filteredRooms.isNotEmpty()) {
+                        val intent = Intent(this, AllRoomsActivity::class.java)
+                        intent.putExtra("allRooms", ArrayList(filteredRooms))
+                        startActivity(intent)
+                        finish()
+                    } else {
+                        Toast.makeText(
+                            this,
+                            "No hay cuartos disponibles en tu área",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                    true
                 }
-                R.id.nav_map -> {
-                    Toast.makeText(this, "Mapa", Toast.LENGTH_SHORT).show()
-                    false
-                }
+
+
                 R.id.nav_chat -> {
-                    Toast.makeText(this, "Chat próximamente", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "💬 Chat próximamente", Toast.LENGTH_SHORT).show()
                     false
                 }
+
                 else -> false
             }
         }

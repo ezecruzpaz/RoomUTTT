@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.roomuttt.data.api.RoomApiService
+import com.example.roomuttt.data.preferences.LocationPreferences
 import com.example.roomuttt.domain.model.RoomData
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
@@ -20,7 +21,9 @@ import javax.inject.Inject
 
 @HiltViewModel
 class MainViewModel @Inject constructor(
-    private val roomApiService: RoomApiService
+    private val roomApiService: RoomApiService,
+    private val locationPreferences: LocationPreferences
+
 ) : ViewModel() {
 
     private val TAG = "MainViewModel"
@@ -44,12 +47,25 @@ class MainViewModel @Inject constructor(
     private val _showViewMoreButton = MutableStateFlow(false)
     val showViewMoreButton: StateFlow<Boolean> = _showViewMoreButton.asStateFlow()
 
+    // ✅ Exponer todos los cuartos como StateFlow
+    val allRooms: StateFlow<List<RoomData>> = _allRooms.asStateFlow()
+
+
     // 🔥 Radio de búsqueda en kilómetros
     private val searchRadiusKm = 10.0
 
     private var googleMap: GoogleMap? = null
     private var isSearchActive = false
     private var hasLocationPermission = false // ✅ Nueva bandera
+
+    init {
+        // ✅ Cargar ubicación guardada al iniciar
+        locationPreferences.getLocation()?.let { location ->
+            _currentLocation.value = location
+            hasLocationPermission = true
+            Log.d(TAG, "📍 Ubicación restaurada: ${location.latitude}, ${location.longitude}")
+        }
+    }
 
     // 🔥 Cargar todos los cuartos desde la API
     fun loadRooms() {
@@ -293,9 +309,12 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    // 🔥 Cuando se concede permiso de ubicación
     fun onLocationPermissionGranted(lat: Double, lng: Double) {
-        hasLocationPermission = true // ✅ Marcar que tenemos permiso
+        hasLocationPermission = true
+
+        // ✅ Guardar en SharedPreferences
+        locationPreferences.saveLocation(lat, lng)
+        Log.d(TAG, "💾 Ubicación guardada: $lat, $lng")
 
         if (!isSearchActive) {
             updateLocationAndFilter(lat, lng)
@@ -306,6 +325,7 @@ class MainViewModel @Inject constructor(
     }
 
     // 🔥 Obtener todos los cuartos cercanos (para pantalla "Ver más")
+    // 🔥 Obtener todos los cuartos cercanos (para pantalla "Ver más")
     fun getAllRooms(): List<RoomData> {
         val location = _currentLocation.value ?: return emptyList()
 
@@ -314,5 +334,10 @@ class MainViewModel @Inject constructor(
             val distance = room.distanceFrom(location.latitude, location.longitude)
             distance != null && distance <= searchRadiusKm
         }.sortedBy { it.distanceFrom(location.latitude, location.longitude) }
+    }
+
+    // ✅ NUEVO: Obtener TODOS los cuartos sin filtrar por ubicación
+    fun getAllRoomsUnfiltered(): List<RoomData> {
+        return _allRooms.value
     }
 }
