@@ -2,6 +2,7 @@ package com.example.roomuttt.ui.room
 
 import android.Manifest
 import android.content.ContentResolver
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Location
 import android.net.Uri
@@ -9,7 +10,6 @@ import android.os.Bundle
 import android.provider.OpenableColumns
 import android.util.Log
 import android.view.MotionEvent
-import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageView
@@ -23,6 +23,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.example.roomuttt.R
 import com.example.roomuttt.data.api.RoomApiService
+import com.example.roomuttt.ui.renter.RenterDashboardActivity
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.CameraUpdateFactory
@@ -34,6 +35,7 @@ import com.google.android.libraries.places.api.Places
 import com.google.android.libraries.places.api.model.Place
 import com.google.android.libraries.places.widget.AutocompleteSupportFragment
 import com.google.android.libraries.places.widget.listener.PlaceSelectionListener
+import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -45,6 +47,7 @@ import java.io.File
 import java.io.FileOutputStream
 import javax.inject.Inject
 import cn.pedant.SweetAlert.SweetAlertDialog
+import com.example.roomuttt.domain.model.RoomData
 
 @AndroidEntryPoint
 class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
@@ -65,6 +68,7 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var mapFragment: SupportMapFragment
     private lateinit var centerMarkerView: ImageView
     private lateinit var scrollView: ScrollView
+    private lateinit var bottomNavigation: BottomNavigationView
     private var googleMap: GoogleMap? = null
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private var currentLocation: LatLng? = null
@@ -72,6 +76,7 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
     private val selectedImageUris = mutableListOf<Uri>()
     private val TAG = "CreateRoomActivity"
     private var progressDialog: SweetAlertDialog? = null
+    private var allRooms = mutableListOf<RoomData>()
 
     private val serviciosDisponibles = arrayOf(
         "Internet",
@@ -124,6 +129,7 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
 
         initViews()
         setupListeners()
+        setupBottomNavigation()
 
         mapFragment = supportFragmentManager.findFragmentById(R.id.map_fragment) as SupportMapFragment
         mapFragment.getMapAsync(this)
@@ -144,6 +150,7 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
         btnCreate = findViewById(R.id.btn_create)
         centerMarkerView = findViewById(R.id.center_marker)
         scrollView = findViewById(R.id.scroll_view)
+        bottomNavigation = findViewById(R.id.bottom_nav)
     }
 
     private fun setupListeners() {
@@ -157,6 +164,52 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
 
         btnCreate.setOnClickListener {
             createRoom()
+        }
+    }
+
+    private fun setupBottomNavigation() {
+        // No seleccionar ningún ítem por defecto en esta pantalla
+        bottomNavigation.menu.findItem(R.id.nav_home)?.isChecked = false
+        bottomNavigation.menu.findItem(R.id.nav_rooms)?.isChecked = false
+        bottomNavigation.menu.findItem(R.id.nav_chat)?.isChecked = false
+
+        bottomNavigation.setOnItemSelectedListener { item ->
+            when (item.itemId) {
+                R.id.nav_home -> {
+                    // Ir a RenterDashboardActivity
+                    val intent = Intent(this, RenterDashboardActivity::class.java)
+                    intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                    startActivity(intent)
+                    finish()
+                    true
+                }
+
+                R.id.nav_rooms -> {
+                    // Navegar a AllRoomsActivity con los cuartos del arrendatario
+                    val intent = Intent(this, AllRoomsActivity::class.java)
+
+                    // Pasar los cuartos del arrendatario actual
+                    val currentRooms = ArrayList<RoomData>()
+                    currentRooms.addAll(allRooms)
+                    intent.putExtra("allRooms", currentRooms)
+
+                    // ✅ Flag para indicar que son cuartos del arrendatario
+                    intent.putExtra("isRenterView", true)
+
+                    // ✅ NUEVO: Indicar que venimos desde RenterDashboard
+                    intent.putExtra("fromRenterDashboard", true)
+
+                    startActivity(intent)
+                    false
+                }
+
+                R.id.nav_chat -> {
+                    Toast.makeText(this, "💬 Chat próximamente", Toast.LENGTH_SHORT).show()
+                    false
+                }
+
+                else -> false
+            }
         }
     }
 
@@ -333,6 +386,10 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
                         title = "¡Éxito!",
                         message = body?.message ?: "Cuarto creado exitosamente"
                     ) {
+                        // Redirigir al dashboard después de crear el cuarto
+                        val intent = Intent(this@CreateRoomActivity, RenterDashboardActivity::class.java)
+                        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+                        startActivity(intent)
                         finish()
                     }
                 } else {
@@ -395,16 +452,13 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
         return result
     }
 
-    // Reemplaza la función onMapReady completa con esta versión mejorada:
-
     override fun onMapReady(googleMap: GoogleMap) {
         this.googleMap = googleMap
 
-        // Configurar UI del mapa
         googleMap.uiSettings.apply {
             isZoomControlsEnabled = true
-            isZoomGesturesEnabled = true  // ✅ ACTIVAR zoom con gestos
-            isScrollGesturesEnabled = true // ✅ ACTIVAR desplazamiento
+            isZoomGesturesEnabled = true
+            isScrollGesturesEnabled = true
             isRotateGesturesEnabled = true
             isTiltGesturesEnabled = true
             isMyLocationButtonEnabled = true
@@ -412,71 +466,59 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
             isMapToolbarEnabled = false
         }
 
-        // Obtener la vista del MapFragment
         val mapView = mapFragment.view
 
-        // 🔥 SOLUCIÓN MEJORADA: Bloquear completamente el ScrollView cuando se toca el mapa
         mapView?.setOnTouchListener { v, event ->
             val action = event.actionMasked
 
             when (action) {
                 MotionEvent.ACTION_DOWN -> {
-                    // 🚫 BLOQUEAR COMPLETAMENTE el ScrollView
                     scrollView.requestDisallowInterceptTouchEvent(true)
                     v.parent?.requestDisallowInterceptTouchEvent(true)
 
-                    // Animación del marcador
                     centerMarkerView.animate()
                         .translationY(-50f)
                         .setDuration(200)
                         .start()
                 }
                 MotionEvent.ACTION_POINTER_DOWN -> {
-                    // También bloquear para gestos multi-touch (zoom)
                     scrollView.requestDisallowInterceptTouchEvent(true)
                     v.parent?.requestDisallowInterceptTouchEvent(true)
                 }
                 MotionEvent.ACTION_MOVE -> {
-                    // Mantener bloqueado mientras se arrastra o hace zoom
                     scrollView.requestDisallowInterceptTouchEvent(true)
                     v.parent?.requestDisallowInterceptTouchEvent(true)
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    // ✅ DESBLOQUEAR solo cuando todos los dedos se levanten
                     if (event.pointerCount <= 1) {
                         scrollView.requestDisallowInterceptTouchEvent(false)
                         v.parent?.requestDisallowInterceptTouchEvent(false)
 
-                        // Restaurar marcador
                         centerMarkerView.animate()
                             .translationY(0f)
                             .setDuration(200)
                             .start()
 
-                        // Guardar ubicación
                         val center = googleMap.cameraPosition.target
                         currentLocation = center
                         Log.d(TAG, "📍 Ubicación seleccionada: ${center.latitude}, ${center.longitude}")
                     }
                 }
                 MotionEvent.ACTION_POINTER_UP -> {
-                    // Si quedan dedos tocando, mantener bloqueado
                     if (event.pointerCount > 1) {
                         scrollView.requestDisallowInterceptTouchEvent(true)
                         v.parent?.requestDisallowInterceptTouchEvent(true)
                     }
                 }
             }
-            false // ⚠️ IMPORTANTE: Retornar false para que el mapa reciba los eventos
+            false
         }
 
-        // Actualizar ubicación cuando la cámara se detiene
         googleMap.setOnCameraIdleListener {
             val center = googleMap.cameraPosition.target
             currentLocation = center
         }
 
-        // Configurar permisos y ubicación inicial
         if (hasLocationPermission()) {
             enableMyLocation()
             getCurrentLocation()
@@ -484,19 +526,6 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
             useDefaultLocation()
         }
     }
-
-    // 🆕 OPCIONAL: Agrega esta función para hacer el mapa más responsivo
-    private fun optimizeMapPerformance() {
-        googleMap?.apply {
-            // Reducir la latencia del mapa
-            setLatLngBoundsForCameraTarget(null)
-
-            // Mejorar rendimiento
-            setMinZoomPreference(10f)
-            setMaxZoomPreference(20f)
-        }
-    }
-
 
     private fun checkAndRequestLocationPermission() {
         when {
