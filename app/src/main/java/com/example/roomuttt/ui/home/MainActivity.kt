@@ -571,11 +571,11 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         if (hasLocationPermission() && googleMap != null) {
             enableMyLocation()
-            // ✅ NO llamar a getCurrentLocation() aquí para evitar duplicados
         }
+
+        // ✅ NUEVO: Recargar cuartos cada vez que la actividad vuelve a primer plano
+        Log.d(TAG, "🔄 onResume: Recargando cuartos...")
+        viewModel.loadRooms()
     }
 
-    fun getCurrentLatLng(): LatLng? {
-        return viewModel.currentLocation.value
-    }
 }
