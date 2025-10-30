@@ -59,6 +59,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var tvNoRooms: TextView
     private lateinit var bottomNavigation: BottomNavigationView
     private lateinit var fusedLocationClient: FusedLocationProviderClient
+    private lateinit var ivLogout: ImageView
 
     private lateinit var placesClient: PlacesClient
     private var sessionToken: AutocompleteSessionToken? = null
@@ -137,6 +138,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         searchView = findViewById(R.id.search_view)
         ivProfile = findViewById(R.id.iv_profile)
         ivNotifications = findViewById(R.id.iv_notifications)
+        ivLogout = findViewById(R.id.iv_logout) // ✅ NUEVO
         recyclerRooms = findViewById(R.id.recycler_rooms)
         btnViewMore = findViewById(R.id.btn_view_more)
         progressBar = findViewById(R.id.progress_bar)
@@ -146,8 +148,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         supportActionBar?.title = "Inicio"
         supportActionBar?.setDisplayHomeAsUpEnabled(false)
     }
-
-    private fun setupSearchViewStyle() {
+        private fun setupSearchViewStyle() {
         try {
             val searchEditTextId = searchView.context.resources.getIdentifier(
                 "search_src_text",
@@ -189,6 +190,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         return null
     }
 
+    // ✅ Agregar en setupListeners()
     private fun setupListeners() {
         searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
             override fun onQueryTextSubmit(query: String?): Boolean {
@@ -217,10 +219,72 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             Toast.makeText(this, "🔔 Notificaciones", Toast.LENGTH_SHORT).show()
         }
 
+        // ✅ NUEVO: Listener para cerrar sesión
+        ivLogout.setOnClickListener {
+            showLogoutConfirmationDialog()
+        }
+
         btnViewMore.setOnClickListener {
             val intent = Intent(this, AllRoomsActivity::class.java)
             intent.putExtra("allRooms", ArrayList(viewModel.getAllRooms()))
             startActivity(intent)
+        }
+    }
+
+    private fun showLogoutConfirmationDialog() {
+        SweetAlertDialog(this, SweetAlertDialog.WARNING_TYPE)
+            .setTitleText("Cerrar Sesión")
+            .setContentText("¿Estás seguro de que deseas cerrar sesión?")
+            .setConfirmText("Sí, cerrar")
+            .setCancelText("Cancelar")
+            .setConfirmClickListener { dialog ->
+                dialog.dismissWithAnimation()
+                performLogout()
+            }
+            .setCancelClickListener { dialog ->
+                dialog.dismissWithAnimation()
+            }
+            .show()
+    }
+    // ✅ NUEVO: Función para cerrar sesión
+    private fun performLogout() {
+        // Mostrar diálogo de carga
+        val loadingDialog = SweetAlertDialog(this, SweetAlertDialog.PROGRESS_TYPE)
+            .setTitleText("Cerrando sesión...")
+        loadingDialog.setCancelable(false)
+        loadingDialog.show()
+
+        try {
+            // Cerrar sesión en Firebase
+            FirebaseAuth.getInstance().signOut()
+
+            loadingDialog.dismissWithAnimation()
+
+            // Mostrar mensaje de éxito
+            SweetAlertDialog(this, SweetAlertDialog.SUCCESS_TYPE)
+                .setTitleText("Sesión cerrada")
+                .setContentText("Has cerrado sesión exitosamente")
+                .setConfirmClickListener { dialog ->
+                    dialog.dismissWithAnimation()
+
+                    // Redirigir a LoginActivity
+                    val intent = Intent(this, com.example.roomuttt.ui.auth.LoginActivity::class.java)
+                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                    startActivity(intent)
+                    finish()
+                }
+                .show()
+
+            Log.d(TAG, "✅ Sesión cerrada exitosamente")
+        } catch (e: Exception) {
+            loadingDialog.dismissWithAnimation()
+
+            SweetAlertDialog(this, SweetAlertDialog.ERROR_TYPE)
+                .setTitleText("Error")
+                .setContentText("No se pudo cerrar sesión: ${e.message}")
+                .show()
+
+            Log.e(TAG, "❌ Error al cerrar sesión: ${e.message}")
         }
     }
 

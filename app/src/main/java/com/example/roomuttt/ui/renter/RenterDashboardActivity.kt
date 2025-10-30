@@ -46,6 +46,8 @@ class RenterDashboardActivity : AppCompatActivity() {
     private lateinit var filterAvailable: LinearLayout
     private lateinit var layoutStatusFilters: androidx.cardview.widget.CardView
     private lateinit var bottomNavigation: BottomNavigationView
+    private lateinit var ivLogout: ImageView
+    private lateinit var ivNotifications: ImageView
 
     private var allRooms = mutableListOf<RoomData>()
     private var filteredRooms = mutableListOf<RoomData>()
@@ -83,6 +85,10 @@ class RenterDashboardActivity : AppCompatActivity() {
         layoutStatusFilters = findViewById(R.id.layout_status_filters)
         bottomNavigation = findViewById(R.id.bottom_navigation)
 
+        // ✅ NUEVO: Inicializar íconos del header
+        ivLogout = findViewById(R.id.iv_logout)
+        ivNotifications = findViewById(R.id.iv_notifications)
+
         layoutStatusFilters.visibility = View.GONE
     }
 
@@ -107,6 +113,16 @@ class RenterDashboardActivity : AppCompatActivity() {
     private fun setupListeners() {
         findViewById<ImageView>(R.id.iv_profile).setOnClickListener {
             startActivity(Intent(this, ProfileActivity::class.java))
+        }
+
+        // ✅ NUEVO: Listener para notificaciones
+        ivNotifications.setOnClickListener {
+            Toast.makeText(this, "🔔 Notificaciones próximamente", Toast.LENGTH_SHORT).show()
+        }
+
+        // ✅ NUEVO: Listener para cerrar sesión
+        ivLogout.setOnClickListener {
+            showLogoutConfirmationDialog()
         }
 
         btnAddRoom.setOnClickListener {
@@ -137,29 +153,17 @@ class RenterDashboardActivity : AppCompatActivity() {
             applyFilter()
         }
 
-        // ✅ NUEVO: Setup del Bottom Navigation
         bottomNavigation.setOnItemSelectedListener { item ->
             when (item.itemId) {
-                R.id.nav_home -> {
-                    // Ya estamos en home (Dashboard)
-                    true
-                }
+                R.id.nav_home -> true
 
                 R.id.nav_rooms -> {
-                    // Navegar a AllRoomsActivity con los cuartos del arrendatario
                     val intent = Intent(this, AllRoomsActivity::class.java)
-
-                    // Pasar los cuartos del arrendatario actual
                     val currentRooms = ArrayList<RoomData>()
                     currentRooms.addAll(allRooms)
                     intent.putExtra("allRooms", currentRooms)
-
-                    // ✅ Flag para indicar que son cuartos del arrendatario
                     intent.putExtra("isRenterView", true)
-
-                    // ✅ NUEVO: Indicar que venimos desde RenterDashboard
                     intent.putExtra("fromRenterDashboard", true)
-
                     startActivity(intent)
                     false
                 }
@@ -171,6 +175,58 @@ class RenterDashboardActivity : AppCompatActivity() {
 
                 else -> false
             }
+        }
+    }// ✅ NUEVO: Función para mostrar diálogo de confirmación
+    private fun showLogoutConfirmationDialog() {
+        cn.pedant.SweetAlert.SweetAlertDialog(this, cn.pedant.SweetAlert.SweetAlertDialog.WARNING_TYPE)
+            .setTitleText("Cerrar Sesión")
+            .setContentText("¿Estás seguro de que deseas cerrar sesión?")
+            .setConfirmText("Sí, cerrar")
+            .setCancelText("Cancelar")
+            .setConfirmClickListener { dialog ->
+                dialog.dismissWithAnimation()
+                performLogout()
+            }
+            .setCancelClickListener { dialog ->
+                dialog.dismissWithAnimation()
+            }
+            .show()
+    }
+
+    // ✅ NUEVO: Función para cerrar sesión
+    private fun performLogout() {
+        val loadingDialog = cn.pedant.SweetAlert.SweetAlertDialog(this, cn.pedant.SweetAlert.SweetAlertDialog.PROGRESS_TYPE)
+            .setTitleText("Cerrando sesión...")
+        loadingDialog.setCancelable(false)
+        loadingDialog.show()
+
+        try {
+            FirebaseAuth.getInstance().signOut()
+            loadingDialog.dismissWithAnimation()
+
+            cn.pedant.SweetAlert.SweetAlertDialog(this, cn.pedant.SweetAlert.SweetAlertDialog.SUCCESS_TYPE)
+                .setTitleText("Sesión cerrada")
+                .setContentText("Has cerrado sesión exitosamente")
+                .setConfirmClickListener { dialog ->
+                    dialog.dismissWithAnimation()
+
+                    val intent = Intent(this, com.example.roomuttt.ui.auth.LoginActivity::class.java)
+                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                    startActivity(intent)
+                    finish()
+                }
+                .show()
+
+            println("✅ Sesión cerrada exitosamente")
+        } catch (e: Exception) {
+            loadingDialog.dismissWithAnimation()
+
+            cn.pedant.SweetAlert.SweetAlertDialog(this, cn.pedant.SweetAlert.SweetAlertDialog.ERROR_TYPE)
+                .setTitleText("Error")
+                .setContentText("No se pudo cerrar sesión: ${e.message}")
+                .show()
+
+            println("❌ Error al cerrar sesión: ${e.message}")
         }
     }
 
