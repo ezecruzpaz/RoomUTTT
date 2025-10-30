@@ -567,46 +567,138 @@ class ProfileActivity : AppCompatActivity() {
             }
         }
     }
+
     private fun showDeleteDialog() {
-        SweetAlertDialog(this, SweetAlertDialog.WARNING_TYPE)
-            .setTitleText("¿Eliminar perfil?")
-            .setContentText("Esta acción eliminará tu cuenta permanentemente y no se puede deshacer")
-            .setConfirmText("Sí, eliminar")
-            .setConfirmClickListener { sDialog ->
-                sDialog.dismissWithAnimation()
+        // Crear vista personalizada para el diálogo
+        val dialogView = layoutInflater.inflate(R.layout.dialog_confirm_delete, null)
+        val etConfirmation = dialogView.findViewById<EditText>(R.id.et_confirmation)
+        val tvWarning = dialogView.findViewById<TextView>(R.id.tv_warning)
 
-                // Mostrar progreso
-                val progressDialog = SweetAlertDialog(this, SweetAlertDialog.PROGRESS_TYPE).apply {
-                    progressHelper.barColor = android.graphics.Color.parseColor("#A5DC86")
-                    titleText = "Eliminando"
-                    contentText = "Eliminando tu cuenta..."
-                    setCancelable(false)
-                    show()
-                }
+        // Verificar si es renter para mostrar advertencia adicional
+        lifecycleScope.launch {
+            val isRenter = viewModel.isRenter.value
 
-                viewModel.deleteProfile()
+            if (isRenter) {
+                tvWarning.text = """
+                ⚠️ ADVERTENCIA
+                
+                Esta acción es PERMANENTE y NO se puede deshacer.
+                
+                Se eliminará:
+                • Tu cuenta y perfil
+                • Tu información personal
+                • TODOS tus cuartos publicados
+                • Todas tus fotos
+                
+                Para confirmar, escribe: ELIMINAR
+            """.trimIndent()
+            } else {
+                tvWarning.text = """
+                ⚠️ ADVERTENCIA
+                
+                Esta acción es PERMANENTE y NO se puede deshacer.
+                
+                Se eliminará:
+                • Tu cuenta y perfil
+                • Tu información personal
+                • Tu foto de perfil
+                
+                Para confirmar, escribe: ELIMINAR
+            """.trimIndent()
+            }
+        }
 
-                lifecycleScope.launch {
-                    kotlinx.coroutines.delay(1500)
-                    progressDialog.dismiss()
-                    auth.signOut()
+        val dialog = AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setCancelable(true)
+            .create()
 
-                    // Mensaje de confirmación
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        dialogView.findViewById<androidx.appcompat.widget.AppCompatButton>(R.id.btn_cancel).setOnClickListener {
+            dialog.dismiss()
+        }
+
+        dialogView.findViewById<androidx.appcompat.widget.AppCompatButton>(R.id.btn_confirm_delete).setOnClickListener {
+            val confirmation = etConfirmation.text.toString().trim()
+
+            if (confirmation.equals("ELIMINAR", ignoreCase = true)) {
+                dialog.dismiss()
+                performCompleteAccountDeletion()
+            } else {
+                SweetAlertDialog(this, SweetAlertDialog.WARNING_TYPE)
+                    .setTitleText("Confirmación incorrecta")
+                    .setContentText("Debes escribir exactamente: ELIMINAR")
+                    .show()
+            }
+        }
+
+        dialog.show()
+    }
+
+    private fun performCompleteAccountDeletion() {
+        // Mostrar progreso
+        val progressDialog = SweetAlertDialog(this, SweetAlertDialog.PROGRESS_TYPE).apply {
+            progressHelper.barColor = android.graphics.Color.parseColor("#D32F2F")
+            titleText = "Eliminando cuenta"
+            contentText = "Por favor espera, esto puede tardar unos segundos..."
+            setCancelable(false)
+            show()
+        }
+
+        lifecycleScope.launch {
+            try {
+                // Ejecutar eliminación completa
+                val result = viewModel.deleteAccountCompletely()
+
+                progressDialog.dismiss()
+
+                if (result.isSuccess) {
+                    // Éxito
                     SweetAlertDialog(this@ProfileActivity, SweetAlertDialog.SUCCESS_TYPE)
                         .setTitleText("Cuenta eliminada")
-                        .setContentText("Tu perfil ha sido eliminado correctamente")
+                        .setContentText("Tu cuenta y todos tus datos han sido eliminados permanentemente")
                         .setConfirmText("OK")
-                        .setConfirmClickListener {
-                            it.dismiss()
-                            startActivity(Intent(this@ProfileActivity, LoginActivity::class.java))
+                        .setConfirmClickListener { dialog ->
+                            dialog.dismissWithAnimation()
+
+                            // Redirigir a Login
+                            val intent = Intent(this@ProfileActivity, LoginActivity::class.java)
+                            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                            startActivity(intent)
                             finish()
                         }
                         .show()
+                } else {
+                    // Error
+                    SweetAlertDialog(this@ProfileActivity, SweetAlertDialog.ERROR_TYPE)
+                        .setTitleText("Error")
+                        .setContentText("No se pudo eliminar la cuenta: ${result.exceptionOrNull()?.message}")
+                        .setConfirmText("Reintentar")
+                        .setConfirmClickListener { dialog ->
+                            dialog.dismissWithAnimation()
+                            performCompleteAccountDeletion()
+                        }
+                        .setCancelButton("Cancelar") { dialog ->
+                            dialog.dismissWithAnimation()
+                        }
+                        .show()
                 }
+
+            } catch (e: Exception) {
+                progressDialog.dismiss()
+
+                SweetAlertDialog(this@ProfileActivity, SweetAlertDialog.ERROR_TYPE)
+                    .setTitleText("Error inesperado")
+                    .setContentText("Ocurrió un error: ${e.message}")
+                    .setConfirmText("OK")
+                    .show()
             }
-            .setCancelButton("Cancelar") { it.dismiss() }
-            .show()
+        }
     }
+
+
+
 
     override fun onResume() {
         super.onResume()
