@@ -88,9 +88,20 @@ class RenterDashboardActivity : AppCompatActivity() {
 
     private fun setupRecyclerView() {
         recyclerView.layoutManager = LinearLayoutManager(this)
-        adapter = RenterRoomAdapter(filteredRooms)
-        recyclerView.adapter = adapter
 
+        // ✅ CORREGIDO: Pasar el callback onRoomClick
+        adapter = RenterRoomAdapter(
+            rooms = filteredRooms,
+            onRoomClick = { room ->
+                // Abrir detalle del cuarto
+                val intent = Intent(this, com.example.roomuttt.ui.room.RoomDetailActivity::class.java)
+                intent.putExtra("room_id", room.id)
+                intent.putExtra("allRooms", ArrayList(allRooms)) // Pasar todos los cuartos del arrendatario
+                startActivity(intent)
+            }
+        )
+
+        recyclerView.adapter = adapter
     }
 
     private fun setupListeners() {

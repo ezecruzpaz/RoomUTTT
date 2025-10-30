@@ -28,9 +28,11 @@ import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import java.util.Locale
 
 @AndroidEntryPoint
@@ -40,7 +42,6 @@ class RoomDetailActivity : AppCompatActivity(), OnMapReadyCallback {
     private var room: RoomData? = null
     private var googleMap: GoogleMap? = null
     private val mainViewModel: com.example.roomuttt.ui.home.viewmodel.MainViewModel by viewModels()
-
 
     // Views
     private lateinit var ivBack: ImageView
@@ -69,7 +70,6 @@ class RoomDetailActivity : AppCompatActivity(), OnMapReadyCallback {
         room = allRooms.find { it.id == roomId }
 
         if (room == null) {
-
             Log.e(TAG, "❌ No se encontró el cuarto con ID: $roomId")
             finish()
             return
@@ -83,18 +83,13 @@ class RoomDetailActivity : AppCompatActivity(), OnMapReadyCallback {
         setupListeners()
         setupBottomNavigation()
 
-
-        // ✅ NUEVO: Cargar cuartos en segundo plano
+        // Cargar TODOS los cuartos disponibles
         lifecycleScope.launch {
-            mainViewModel.loadRooms()
-
-            // Esperar a que se carguen
-            mainViewModel.allRooms.first { it.isNotEmpty() }
-
-            // Aplicar filtro con ubicación guardada
-            mainViewModel.currentLocation.value?.let { location ->
-                mainViewModel.updateLocationAndFilter(location.latitude, location.longitude)
-                Log.d(TAG, "✅ Filtro aplicado: ${location.latitude}, ${location.longitude}")
+            try {
+                mainViewModel.loadRooms()
+                Log.d(TAG, "✅ Cuartos cargados: ${mainViewModel.allRooms.value.size}")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error cargando cuartos: ${e.message}")
             }
         }
     }
@@ -110,6 +105,15 @@ class RoomDetailActivity : AppCompatActivity(), OnMapReadyCallback {
         servicesContainer = findViewById(R.id.services_container)
         btnContactContainer = findViewById(R.id.btn_contact_container)
         bottomNavigation = findViewById(R.id.bottom_navigation)
+
+        // ✅ Listeners para iconos del header
+        findViewById<ImageView>(R.id.iv_profile).setOnClickListener {
+            startActivity(Intent(this, com.example.roomuttt.ui.profile.ProfileActivity::class.java))
+        }
+
+        findViewById<ImageView>(R.id.iv_notifications).setOnClickListener {
+            Toast.makeText(this, "🔔 Notificaciones próximamente", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun setupMap() {
@@ -127,10 +131,7 @@ class RoomDetailActivity : AppCompatActivity(), OnMapReadyCallback {
         room?.let { roomData ->
             tvRoomName.text = roomData.nombre
             tvRoomPrice.text = "$${roomData.precio} MXN / mes"
-
-            // ✅ Convertir coordenadas a dirección legible
             tvRoomAddress.text = getReadableAddress(roomData.ubicacion)
-
             tvDescription.text = roomData.descripcion ?: "Sin descripción disponible"
 
             setupImageGallery(roomData.imagenes)
@@ -138,7 +139,6 @@ class RoomDetailActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
-    // ✅ Función mejorada para convertir coordenadas a dirección
     private fun getReadableAddress(coordinates: String): String {
         return try {
             val parts = coordinates.split(",").map { it.trim() }
@@ -167,12 +167,7 @@ class RoomDetailActivity : AppCompatActivity(), OnMapReadyCallback {
                                 append(it)
                             }
                         }
-
-                        return if (addressText.isNotEmpty()) {
-                            addressText
-                        } else {
-                            "Tula de Allende, Hidalgo"
-                        }
+                        return if (addressText.isNotEmpty()) addressText else "Tula de Allende, Hidalgo"
                     }
                 }
             }
@@ -190,7 +185,6 @@ class RoomDetailActivity : AppCompatActivity(), OnMapReadyCallback {
 
         val adapter = ImagePagerAdapter(imageList)
         imageViewPager.adapter = adapter
-
         TabLayoutMediator(tabIndicator, imageViewPager) { _, _ -> }.attach()
 
         Log.d(TAG, "✅ Galería configurada con ${imageList.size} imágenes")
@@ -208,22 +202,39 @@ class RoomDetailActivity : AppCompatActivity(), OnMapReadyCallback {
             when {
                 servicio.contains("wifi", true) || servicio.contains("internet", true) ->
                     services.add("Wifi" to R.drawable.ic_wifi)
+
                 servicio.contains("estacionamiento", true) || servicio.contains("parking", true) ->
                     services.add("Estacionamiento" to R.drawable.ic_parking)
+
                 servicio.contains("cocina", true) ->
                     services.add("Cocina" to R.drawable.ic_kitchen)
+
                 servicio.contains("baño", true) ->
                     services.add("Baño privado" to R.drawable.ic_bathroom)
+
                 servicio.contains("aire acondicionado", true) || servicio.contains("clima", true) ->
-                    services.add("Aire Acondicionado" to R.drawable.ic_wifi)
+                    services.add("Aire Acondicionado" to R.drawable.ic_ac)
+
                 servicio.contains("tv", true) || servicio.contains("televisión", true) ->
-                    services.add("TV" to R.drawable.ic_wifi)
+                    services.add("TV" to R.drawable.ic_tv)
+
                 servicio.contains("lavadora", true) ->
-                    services.add("Lavadora" to R.drawable.ic_wifi)
-                servicio.contains("agua caliente", true) ->
-                    services.add("Agua Caliente" to R.drawable.ic_wifi)
+                    services.add("Lavadora" to R.drawable.ic_washing_machine)
+
+                servicio.contains("agua", true) ->
+                    services.add("Agua Caliente" to R.drawable.ic_water)
+
                 servicio.contains("seguridad", true) ->
-                    services.add("Seguridad 24/7" to R.drawable.ic_wifi)
+                    services.add("Seguridad 24/7" to R.drawable.ic_security)
+
+                servicio.contains("luz", true) || servicio.contains("gas", true) || servicio.contains("incluidos", true) ->
+                    services.add("Servicios Incluidos" to R.drawable.ic_services)
+
+                servicio.contains("mobiliario", true) || servicio.contains("muebles", true) ->
+                    services.add("Mobiliario" to R.drawable.ic_furniture)
+
+                // ✅ CASO ELSE: Si no coincide con nada, lo agregamos con ícono genérico
+                else -> services.add(servicio to R.drawable.ic_service_default)
             }
         }
 
@@ -231,9 +242,8 @@ class RoomDetailActivity : AppCompatActivity(), OnMapReadyCallback {
             services.add("Sin servicios" to R.drawable.ic_wifi)
         }
 
-        Log.d(TAG, "✅ ${services.size} servicios encontrados")
+        Log.d(TAG, "✅ ${services.size} servicios encontrados: ${services.map { it.first }}")
 
-        // ✅ Crear chips con TAMAÑO FIJO en filas de 3
         var currentRow: LinearLayout? = null
         services.forEachIndexed { index, (name, icon) ->
             if (index % 3 == 0) {
@@ -258,10 +268,9 @@ class RoomDetailActivity : AppCompatActivity(), OnMapReadyCallback {
             iconView?.setImageResource(icon)
             textView?.text = name
 
-            // ✅ TAMAÑO FIJO: Todos los chips tienen el mismo ancho y alto
             serviceChip.layoutParams = LinearLayout.LayoutParams(
                 0,
-                55.dpToPx(), // ✅ Altura muy reducida a 55dp
+                55.dpToPx(),
                 1f
             ).apply {
                 if (index % 3 != 2) {
@@ -293,33 +302,55 @@ class RoomDetailActivity : AppCompatActivity(), OnMapReadyCallback {
         bottomNavigation.setOnItemSelectedListener { item ->
             when (item.itemId) {
                 R.id.nav_home -> {
-                    // ✅ Regresar a MainActivity (Home)
-                    val intent = Intent(this, MainActivity::class.java)
-                    intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                    startActivity(intent)
-                    finish()
-                    true
-                }
+                    // ✅ CORREGIDO: Verificar en Firestore si es RENTER
+                    lifecycleScope.launch {
+                        val isRenter = checkIfUserIsRenter()
 
-                R.id.nav_rooms -> {
-                    // ✅ Ir a AllRoomsActivity con cuartos filtrados
-                    val filteredRooms = mainViewModel.getAllRooms()
+                        val intent = if (isRenter) {
+                            // Usuario RENTER -> RenterDashboardActivity
+                            Intent(this@RoomDetailActivity, com.example.roomuttt.ui.renter.RenterDashboardActivity::class.java)
+                        } else {
+                            // Usuario STUDENT -> MainActivity
+                            Intent(this@RoomDetailActivity, MainActivity::class.java)
+                        }
 
-                    if (filteredRooms.isNotEmpty()) {
-                        val intent = Intent(this, AllRoomsActivity::class.java)
-                        intent.putExtra("allRooms", ArrayList(filteredRooms))
+                        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
                         startActivity(intent)
                         finish()
-                    } else {
-                        Toast.makeText(
-                            this,
-                            "No hay cuartos disponibles en tu área",
-                            Toast.LENGTH_SHORT
-                        ).show()
                     }
                     true
                 }
 
+                R.id.nav_rooms -> {
+                    lifecycleScope.launch {
+                        try {
+                            mainViewModel.loadRooms()
+                            val allAvailableRooms = mainViewModel.allRooms.value
+
+                            if (allAvailableRooms.isNotEmpty()) {
+                                val intent = Intent(this@RoomDetailActivity, AllRoomsActivity::class.java)
+                                intent.putExtra("allRooms", ArrayList(allAvailableRooms))
+                                intent.putExtra("isRenterView", false)
+                                startActivity(intent)
+                                finish()
+                            } else {
+                                Toast.makeText(
+                                    this@RoomDetailActivity,
+                                    "No hay cuartos disponibles",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error cargando cuartos: ${e.message}")
+                            Toast.makeText(
+                                this@RoomDetailActivity,
+                                "Error al cargar cuartos",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+                    true
+                }
 
                 R.id.nav_chat -> {
                     Toast.makeText(this, "💬 Chat próximamente", Toast.LENGTH_SHORT).show()
@@ -328,6 +359,34 @@ class RoomDetailActivity : AppCompatActivity(), OnMapReadyCallback {
 
                 else -> false
             }
+        }
+    }
+
+    // ✅ NUEVA FUNCIÓN: Verificar si el usuario es RENTER en Firestore
+    private suspend fun checkIfUserIsRenter(): Boolean {
+        return try {
+            val currentUser = FirebaseAuth.getInstance().currentUser
+            if (currentUser == null) {
+                Log.w(TAG, "⚠️ Usuario no autenticado")
+                return false
+            }
+
+            val uid = currentUser.uid
+            val firestore = FirebaseFirestore.getInstance()
+
+            // Verificar en la colección 'renters'
+            val renterDoc = firestore.collection("renters")
+                .document(uid)
+                .get()
+                .await()
+
+            val isRenter = renterDoc.exists()
+            Log.d(TAG, "✅ ¿Es arrendatario?: $isRenter")
+
+            isRenter
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error verificando rol de usuario: ${e.message}")
+            false
         }
     }
 

@@ -8,11 +8,15 @@ import android.location.Location
 import android.net.Uri
 import android.os.Bundle
 import android.provider.OpenableColumns
+import android.text.Editable
+import android.text.TextWatcher
 import android.util.Log
 import android.view.MotionEvent
 import android.widget.Button
+import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
@@ -61,6 +65,10 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var etDescripcion: EditText
     private lateinit var etCapacidad: EditText
     private lateinit var tvServiciosSeleccionados: TextView
+    private lateinit var tvNombreCounter: TextView
+    private lateinit var tvPrecioCounter: TextView
+    private lateinit var tvDescripcionCounter: TextView
+    private lateinit var tvCapacidadCounter: TextView
     private lateinit var btnAddImage: com.google.android.material.floatingactionbutton.FloatingActionButton
     private lateinit var ivPreview: ImageView
     private lateinit var tvImageCount: TextView
@@ -78,15 +86,22 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
     private var progressDialog: SweetAlertDialog? = null
     private var allRooms = mutableListOf<RoomData>()
 
+    // Límites de caracteres
+    private val MAX_NOMBRE = 50
+    private val MAX_PRECIO = 10
+    private val MAX_DESCRIPCION = 300
+    private val MAX_CAPACIDAD = 1  // Solo 1 dígito
+    private val MAX_IMAGES = 10
+    private val MAX_PERSONAS = 4   // Máximo 4 personas
+
     private val serviciosDisponibles = arrayOf(
-        "Internet",
-        "Aire Acondicionado",
-        "Cocina",
-        "Estacionamiento",
-        "TV",
+        "Agua, luz y gas incluidos",
+        "Wi-Fi",
+        "Baño privado",
+        "Baño compartido",
+        "Acceso a cocina",
+        "Mobiliario básico",
         "Lavadora",
-        "Agua Caliente",
-        "Seguridad 24/7"
     )
 
     private val serviciosSeleccionados = BooleanArray(serviciosDisponibles.size)
@@ -95,11 +110,17 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
         ActivityResultContracts.GetMultipleContents()
     ) { uris: List<Uri> ->
         if (uris.isNotEmpty()) {
-            selectedImageUris.clear()
-            selectedImageUris.addAll(uris)
-            ivPreview.setImageURI(uris[0])
-            tvImageCount.text = "${uris.size} imagen(es) seleccionada(s)"
-            Log.d(TAG, "Imágenes seleccionadas: ${uris.size}")
+            if (uris.size > MAX_IMAGES) {
+                showWarningDialog("Límite de imágenes", "Puedes seleccionar máximo $MAX_IMAGES imágenes. Se tomarán las primeras $MAX_IMAGES.")
+                selectedImageUris.clear()
+                selectedImageUris.addAll(uris.take(MAX_IMAGES))
+            } else {
+                selectedImageUris.clear()
+                selectedImageUris.addAll(uris)
+            }
+            ivPreview.setImageURI(selectedImageUris[0])
+            tvImageCount.text = "${selectedImageUris.size}/$MAX_IMAGES imagen(es) seleccionada(s)"
+            Log.d(TAG, "Imágenes seleccionadas: ${selectedImageUris.size}")
         }
     }
 
@@ -128,6 +149,7 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
         initViews()
+        setupTextWatchers()
         setupListeners()
         setupBottomNavigation()
 
@@ -144,6 +166,10 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
         etDescripcion = findViewById(R.id.et_descripcion)
         etCapacidad = findViewById(R.id.et_capacidad)
         tvServiciosSeleccionados = findViewById(R.id.tv_servicios_seleccionados)
+        tvNombreCounter = findViewById(R.id.tv_nombre_counter)
+        tvPrecioCounter = findViewById(R.id.tv_precio_counter)
+        tvDescripcionCounter = findViewById(R.id.tv_descripcion_counter)
+        tvCapacidadCounter = findViewById(R.id.tv_capacidad_counter)
         btnAddImage = findViewById(R.id.btn_add_image)
         ivPreview = findViewById(R.id.iv_preview)
         tvImageCount = findViewById(R.id.tv_image_count)
@@ -151,6 +177,77 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
         centerMarkerView = findViewById(R.id.center_marker)
         scrollView = findViewById(R.id.scroll_view)
         bottomNavigation = findViewById(R.id.bottom_nav)
+
+        // Inicializar contadores
+        tvImageCount.text = "0/$MAX_IMAGES imagen(es) seleccionada(s)"
+    }
+
+    private fun setupTextWatchers() {
+        // TextWatcher para Nombre - SOLO LETRAS
+        etNombre.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                val length = s?.length ?: 0
+                tvNombreCounter.text = "$length/$MAX_NOMBRE (solo letras)"
+                tvNombreCounter.setTextColor(
+                    if (length > MAX_NOMBRE * 0.9) getColor(android.R.color.holo_red_dark)
+                    else getColor(R.color.darker_gray)
+                )
+            }
+
+            override fun afterTextChanged(s: Editable?) {}
+        })
+
+        // TextWatcher para Precio (sin cambios)
+        etPrecio.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                val length = s?.length ?: 0
+                tvPrecioCounter.text = "$length/$MAX_PRECIO"
+                tvPrecioCounter.setTextColor(
+                    if (length > MAX_PRECIO * 0.9) getColor(android.R.color.holo_red_dark)
+                    else getColor(R.color.darker_gray)
+                )
+            }
+
+            override fun afterTextChanged(s: Editable?) {}
+        })
+
+        // TextWatcher para Descripción - SOLO LETRAS
+        etDescripcion.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                val length = s?.length ?: 0
+                tvDescripcionCounter.text = "$length/$MAX_DESCRIPCION (solo letras)"
+                tvDescripcionCounter.setTextColor(
+                    if (length > MAX_DESCRIPCION * 0.9) getColor(android.R.color.holo_red_dark)
+                    else getColor(R.color.darker_gray)
+                )
+            }
+
+            override fun afterTextChanged(s: Editable?) {}
+        })
+
+        // TextWatcher para Capacidad - MÁXIMO 4 PERSONAS
+        etCapacidad.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                val length = s?.length ?: 0
+                val valor = s.toString().toIntOrNull() ?: 0
+
+                tvCapacidadCounter.text = "$length/$MAX_CAPACIDAD (máx. $MAX_PERSONAS personas)"
+                tvCapacidadCounter.setTextColor(
+                    if (valor > MAX_PERSONAS) getColor(android.R.color.holo_red_dark)
+                    else getColor(R.color.darker_gray)
+                )
+            }
+
+            override fun afterTextChanged(s: Editable?) {}
+        })
     }
 
     private fun setupListeners() {
@@ -165,10 +262,19 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
         btnCreate.setOnClickListener {
             createRoom()
         }
+
+        // ✅ Listener para el icono de perfil
+        findViewById<ImageView>(R.id.iv_profile).setOnClickListener {
+            startActivity(Intent(this, com.example.roomuttt.ui.profile.ProfileActivity::class.java))
+        }
+
+// ✅ Listener para el icono de notificaciones
+        findViewById<ImageView>(R.id.iv_notifications).setOnClickListener {
+            Toast.makeText(this, "🔔 Notificaciones próximamente", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun setupBottomNavigation() {
-        // No seleccionar ningún ítem por defecto en esta pantalla
         bottomNavigation.menu.findItem(R.id.nav_home)?.isChecked = false
         bottomNavigation.menu.findItem(R.id.nav_rooms)?.isChecked = false
         bottomNavigation.menu.findItem(R.id.nav_chat)?.isChecked = false
@@ -176,7 +282,6 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
         bottomNavigation.setOnItemSelectedListener { item ->
             when (item.itemId) {
                 R.id.nav_home -> {
-                    // Ir a RenterDashboardActivity
                     val intent = Intent(this, RenterDashboardActivity::class.java)
                     intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
                     startActivity(intent)
@@ -185,21 +290,64 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
                 }
 
                 R.id.nav_rooms -> {
-                    // Navegar a AllRoomsActivity con los cuartos del arrendatario
-                    val intent = Intent(this, AllRoomsActivity::class.java)
+                    // ✅ CORREGIDO: Cargar cuartos del API antes de navegar
+                    lifecycleScope.launch {
+                        try {
+                            // Obtener el UID del usuario actual
+                            val uid = auth.currentUser?.uid
 
-                    // Pasar los cuartos del arrendatario actual
-                    val currentRooms = ArrayList<RoomData>()
-                    currentRooms.addAll(allRooms)
-                    intent.putExtra("allRooms", currentRooms)
+                            if (uid == null) {
+                                Toast.makeText(
+                                    this@CreateRoomActivity,
+                                    "Error: Usuario no autenticado",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                return@launch
+                            }
 
-                    // ✅ Flag para indicar que son cuartos del arrendatario
-                    intent.putExtra("isRenterView", true)
+                            // Cargar todos los cuartos desde el API
+                            val response = roomApiService.getRooms()
 
-                    // ✅ NUEVO: Indicar que venimos desde RenterDashboard
-                    intent.putExtra("fromRenterDashboard", true)
+                            if (response.isSuccessful) {
+                                val apiResponse = response.body()
+                                val allRoomsList = apiResponse?.result ?: emptyList()
 
-                    startActivity(intent)
+                                // Filtrar solo los cuartos del usuario actual
+                                val userRooms = allRoomsList.filter { room ->
+                                    room.userId.trim().equals(uid.trim(), ignoreCase = true)
+                                }
+
+                                Log.d(TAG, "📦 Cuartos del usuario: ${userRooms.size}")
+
+                                if (userRooms.isNotEmpty()) {
+                                    val intent = Intent(this@CreateRoomActivity, AllRoomsActivity::class.java)
+                                    intent.putExtra("allRooms", ArrayList(userRooms))
+                                    intent.putExtra("isRenterView", true)
+                                    intent.putExtra("fromRenterDashboard", true)
+                                    startActivity(intent)
+                                } else {
+                                    Toast.makeText(
+                                        this@CreateRoomActivity,
+                                        "Aún no tienes cuartos publicados",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            } else {
+                                Toast.makeText(
+                                    this@CreateRoomActivity,
+                                    "Error al cargar cuartos",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error cargando cuartos: ${e.message}")
+                            Toast.makeText(
+                                this@CreateRoomActivity,
+                                "Error de conexión",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
                     false
                 }
 
@@ -238,26 +386,43 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     private fun showServiciosDialog() {
-        val builder = AlertDialog.Builder(this)
-        builder.setTitle("Selecciona Servicios")
+        val dialogView = layoutInflater.inflate(R.layout.dialog_servicios_selection, null)
 
-        builder.setMultiChoiceItems(
-            serviciosDisponibles,
-            serviciosSeleccionados
-        ) { _, which, isChecked ->
-            serviciosSeleccionados[which] = isChecked
+        val dialog = AlertDialog.Builder(this)
+            .setView(dialogView)
+            .create()
+
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        val checkboxContainer = dialogView.findViewById<LinearLayout>(R.id.checkbox_container)
+        val btnCancel = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_cancel)
+        val btnAccept = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_accept)
+
+        checkboxContainer.removeAllViews()
+
+        serviciosDisponibles.forEachIndexed { index, servicio ->
+            val checkbox = layoutInflater.inflate(R.layout.item_checkbox_servicio, checkboxContainer, false) as CheckBox
+
+            checkbox.text = servicio
+            checkbox.isChecked = serviciosSeleccionados[index]
+
+            checkbox.setOnCheckedChangeListener { _, isChecked ->
+                serviciosSeleccionados[index] = isChecked
+            }
+
+            checkboxContainer.addView(checkbox)
         }
 
-        builder.setPositiveButton("Aceptar") { dialog, _ ->
+        btnCancel.setOnClickListener {
+            dialog.dismiss()
+        }
+
+        btnAccept.setOnClickListener {
             updateServiciosText()
             dialog.dismiss()
         }
 
-        builder.setNegativeButton("Cancelar") { dialog, _ ->
-            dialog.dismiss()
-        }
-
-        builder.create().show()
+        dialog.show()
     }
 
     private fun updateServiciosText() {
@@ -301,13 +466,27 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
         val capacidadStr = etCapacidad.text.toString().trim()
         val serviciosStr = getServiciosString()
 
+        // Validación de nombre
         if (nombre.isEmpty()) {
             etNombre.error = "El nombre es requerido"
             etNombre.requestFocus()
             showWarningDialog("Campo Requerido", "El nombre es requerido")
             return
         }
+        if (nombre.length < 5) {
+            etNombre.error = "El nombre debe tener al menos 5 caracteres"
+            etNombre.requestFocus()
+            showWarningDialog("Nombre muy corto", "El nombre debe tener al menos 5 caracteres")
+            return
+        }
+        if (nombre.length > MAX_NOMBRE) {
+            etNombre.error = "El nombre no puede exceder $MAX_NOMBRE caracteres"
+            etNombre.requestFocus()
+            showWarningDialog("Nombre muy largo", "El nombre no puede exceder $MAX_NOMBRE caracteres")
+            return
+        }
 
+        // Validación de precio
         if (precioStr.isEmpty()) {
             etPrecio.error = "El precio es requerido"
             etPrecio.requestFocus()
@@ -322,7 +501,22 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
             showWarningDialog("Precio Inválido", "El precio debe ser mayor a 0")
             return
         }
+        if (precio > 999999999) {
+            etPrecio.error = "El precio es demasiado alto"
+            etPrecio.requestFocus()
+            showWarningDialog("Precio Inválido", "El precio ingresado es demasiado alto")
+            return
+        }
 
+        // Validación de descripción
+        if (descripcion.length > MAX_DESCRIPCION) {
+            etDescripcion.error = "La descripción no puede exceder $MAX_DESCRIPCION caracteres"
+            etDescripcion.requestFocus()
+            showWarningDialog("Descripción muy larga", "La descripción no puede exceder $MAX_DESCRIPCION caracteres")
+            return
+        }
+
+        // Validación de capacidad
         if (capacidadStr.isEmpty()) {
             etCapacidad.error = "La capacidad es requerida"
             etCapacidad.requestFocus()
@@ -337,9 +531,22 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
             showWarningDialog("Capacidad Inválida", "La capacidad debe ser al menos 1")
             return
         }
+        if (capacidad > 99) {
+            etCapacidad.error = "La capacidad máxima es 4 personas"
+            etCapacidad.requestFocus()
+            showWarningDialog("Capacidad Inválida", "La capacidad máxima es 4 personas")
+            return
+        }
 
+        // Validación de servicios
         if (serviciosStr.isEmpty()) {
             showWarningDialog("Servicios", "Selecciona al menos un servicio")
+            return
+        }
+
+        // Validación de imágenes
+        if (selectedImageUris.isEmpty()) {
+            showWarningDialog("Imágenes", "Debes agregar al menos 1 imagen del cuarto")
             return
         }
 
@@ -358,13 +565,9 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
                 val userIdBody = uid.toRequestBody("text/plain".toMediaTypeOrNull())
                 val ubicacionBody = ubicacion.toRequestBody("text/plain".toMediaTypeOrNull())
 
-                val imageParts = if (selectedImageUris.isNotEmpty()) {
-                    prepareImageParts(selectedImageUris)
-                } else {
-                    null
-                }
+                val imageParts = prepareImageParts(selectedImageUris)
 
-                Log.d(TAG, "Enviando ${imageParts?.size ?: 0} imagen(es)")
+                Log.d(TAG, "Enviando ${imageParts.size} imagen(es)")
 
                 val response = roomApiService.createRoom(
                     nombre = nombreBody,
@@ -386,7 +589,6 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
                         title = "¡Éxito!",
                         message = body?.message ?: "Cuarto creado exitosamente"
                     ) {
-                        // Redirigir al dashboard después de crear el cuarto
                         val intent = Intent(this@CreateRoomActivity, RenterDashboardActivity::class.java)
                         intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
                         startActivity(intent)

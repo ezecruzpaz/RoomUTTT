@@ -67,9 +67,11 @@
             <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
+                android:layout_marginBottom="4dp"
                 android:background="@drawable/input_background"
                 app:boxBackgroundMode="none"
+                app:counterEnabled="true"
+                app:counterMaxLength="50"
                 app:hintTextColor="@color/darker_gray">
 
                 <com.google.android.material.textfield.TextInputEditText
@@ -78,15 +80,28 @@
                     android:layout_height="wrap_content"
                     android:padding="16dp"
                     android:textColor="@color/black"
-                    android:hint="Nombre del Cuarto" />
+                    android:hint="Nombre del Cuarto"
+                    android:inputType="textCapWords"
+                    android:maxLength="50"
+                    android:digits="abcdefghijklmnñopqrstuvwxyzABCDEFGHIJKLMNÑOPQRSTUVWXYZáéíóúÁÉÍÓÚüÜ " />
 
             </com.google.android.material.textfield.TextInputLayout>
+
+            <TextView
+                android:id="@+id/tv_nombre_counter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end"
+                android:layout_marginBottom="16dp"
+                android:text="0/50 (solo letras)"
+                android:textSize="12sp"
+                android:textColor="@color/darker_gray" />
 
             <!-- Precio -->
             <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
+                android:layout_marginBottom="4dp"
                 android:background="@drawable/input_background"
                 app:boxBackgroundMode="none"
                 app:hintTextColor="@color/darker_gray">
@@ -98,17 +113,30 @@
                     android:padding="16dp"
                     android:inputType="numberDecimal"
                     android:textColor="@color/black"
-                    android:hint="Precio (MXN)" />
+                    android:hint="Precio (MXN)"
+                    android:maxLength="10" />
 
             </com.google.android.material.textfield.TextInputLayout>
+
+            <TextView
+                android:id="@+id/tv_precio_counter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end"
+                android:layout_marginBottom="16dp"
+                android:text="0/10"
+                android:textSize="12sp"
+                android:textColor="@color/darker_gray" />
 
             <!-- Descripción -->
             <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
+                android:layout_marginBottom="4dp"
                 android:background="@drawable/input_background"
                 app:boxBackgroundMode="none"
+                app:counterEnabled="true"
+                app:counterMaxLength="300"
                 app:hintTextColor="@color/darker_gray">
 
                 <com.google.android.material.textfield.TextInputEditText
@@ -119,15 +147,27 @@
                     android:inputType="textMultiLine"
                     android:lines="3"
                     android:textColor="@color/black"
-                    android:hint="Descripción" />
+                    android:hint="Descripción"
+                    android:maxLength="300" />
 
             </com.google.android.material.textfield.TextInputLayout>
+
+            <TextView
+                android:id="@+id/tv_descripcion_counter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end"
+                android:layout_marginBottom="16dp"
+                android:text="0/300"
+                android:textSize="12sp"
+                android:textColor="@color/darker_gray" />
+
 
             <!-- Capacidad -->
             <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
+                android:layout_marginBottom="4dp"
                 android:background="@drawable/input_background"
                 app:boxBackgroundMode="none"
                 app:hintTextColor="@color/darker_gray">
@@ -139,9 +179,20 @@
                     android:padding="16dp"
                     android:inputType="number"
                     android:textColor="@color/black"
-                    android:hint="Capacidad (personas)" />
-
+                    android:hint="Capacidad (personas)"
+                    android:maxLength="1"
+                    android:digits="1234" />
             </com.google.android.material.textfield.TextInputLayout>
+
+            <TextView
+                android:id="@+id/tv_capacidad_counter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end"
+                android:layout_marginBottom="16dp"
+                android:text="0/1 (máx. 4 personas)"
+                android:textSize="12sp"
+                android:textColor="@color/darker_gray" />
 
             <!-- Servicios -->
             <TextView
@@ -309,7 +360,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
-                android:text="0 imagen(es) seleccionada(s)"
+                android:text="0/10 imagen(es) seleccionada(s)"
                 android:textColor="@color/darker_gray"
                 android:textSize="14sp" />
 

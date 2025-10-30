@@ -3,6 +3,7 @@ package com.example.roomuttt.ui.renter.adapter
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Button
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
@@ -24,7 +25,14 @@ class RenterRoomAdapter(
     override fun onBindViewHolder(holder: RoomViewHolder, position: Int) {
         val room = rooms[position]
         holder.bind(room)
+
+        // ✅ Click en toda la tarjeta
         holder.itemView.setOnClickListener {
+            onRoomClick?.invoke(room)
+        }
+
+        // ✅ Click en el botón "Ver Detalles"
+        holder.btnReserve?.setOnClickListener {
             onRoomClick?.invoke(room)
         }
     }
@@ -42,6 +50,7 @@ class RenterRoomAdapter(
         private val tvRoomName: TextView = itemView.findViewById(R.id.tv_room_name)
         private val tvRoomPrice: TextView? = itemView.findViewById(R.id.tv_room_price)
         private val tvRoomStatus: TextView? = itemView.findViewById(R.id.tv_room_status)
+        val btnReserve: Button? = itemView.findViewById(R.id.btn_reserve) // ✅ Botón "Ver Detalles"
 
         fun bind(room: RoomData) {
             // Nombre del cuarto
@@ -52,6 +61,9 @@ class RenterRoomAdapter(
 
             // Estado
             tvRoomStatus?.text = if (room.disponible) "Disponible" else "Ocupado"
+
+            // ✅ Cambiar texto del botón según el contexto
+            btnReserve?.text = "Ver Detalles"
 
             // Imagen (primera imagen de la lista)
             ivRoomImage?.let { imageView ->

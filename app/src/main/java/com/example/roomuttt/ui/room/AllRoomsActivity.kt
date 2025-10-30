@@ -7,6 +7,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.roomuttt.R
@@ -16,6 +17,10 @@ import com.example.roomuttt.ui.profile.ProfileActivity
 import com.example.roomuttt.domain.model.RoomData
 import com.example.roomuttt.ui.renter.RenterDashboardActivity
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 class AllRoomsActivity : AppCompatActivity() {
 
@@ -26,7 +31,6 @@ class AllRoomsActivity : AppCompatActivity() {
     private lateinit var recyclerView: RecyclerView
     private var allRooms: ArrayList<RoomData> = arrayListOf()
 
-    // ✅ NUEVO: Variable para saber de dónde venimos
     private var fromRenterDashboard = false
 
     private val TAG = "AllRoomsActivity"
@@ -38,7 +42,6 @@ class AllRoomsActivity : AppCompatActivity() {
         val isRenterView = intent.getBooleanExtra("isRenterView", false)
         val renterName = intent.getStringExtra("renterName")
 
-        // ✅ NUEVO: Detectar de dónde venimos
         fromRenterDashboard = intent.getBooleanExtra("fromRenterDashboard", false)
 
         // Configurar el título según el contexto
@@ -53,15 +56,15 @@ class AllRoomsActivity : AppCompatActivity() {
         initViews()
         setupListeners()
 
-        // ✅ Recibir la lista de cuartos
+        // Recibir la lista de cuartos
         allRooms = intent.getSerializableExtra("allRooms") as? ArrayList<RoomData> ?: arrayListOf()
 
         Log.d(TAG, "📦 Cuartos recibidos: ${allRooms.size}")
 
-        // ✅ Actualizar contador
+        // Actualizar contador
         tvRoomsCount.text = "${allRooms.size} cuartos disponibles"
 
-        // ✅ Configurar RecyclerView
+        // Configurar RecyclerView
         setupRecyclerView()
         setupBottomNavigation()
     }
@@ -83,59 +86,63 @@ class AllRoomsActivity : AppCompatActivity() {
             return
         }
 
-        // ✅ Crear el adapter pasando la lista completa
+        // Crear el adapter pasando la lista completa
         val adapter = RoomAdapter(
             onRoomClick = { room ->
                 Log.d(TAG, "🏠 Cuarto clickeado: ${room.nombre}")
 
-                // ✅ Abrir detalle del cuarto
+                // Abrir detalle del cuarto
                 val intent = Intent(this, RoomDetailActivity::class.java)
-                intent.putExtra("room", room)
+                intent.putExtra("room_id", room.id)
+                intent.putExtra("allRooms", allRooms)
                 startActivity(intent)
             },
-            allRooms = allRooms // ✅ Lista completa de cuartos
+            allRooms = allRooms
         )
 
         recyclerView.adapter = adapter
 
-        // ✅ Mostrar TODOS los cuartos (no solo los 2 primeros)
+        // Mostrar TODOS los cuartos
         adapter.submitList(allRooms)
 
         Log.d(TAG, "✅ RecyclerView configurado con ${allRooms.size} cuartos")
     }
 
     private fun setupListeners() {
-        // ✅ Botón de Perfil
+        // Botón de Perfil
         ivProfile.setOnClickListener {
             startActivity(Intent(this, ProfileActivity::class.java))
         }
 
-        // ✅ Botón de Notificaciones
+        // Botón de Notificaciones
         ivNotifications.setOnClickListener {
             Toast.makeText(this, "🔔 Notificaciones", Toast.LENGTH_SHORT).show()
         }
     }
 
     private fun setupBottomNavigation() {
-        // ✅ Marcar "Rooms" como seleccionado
+        // Marcar "Rooms" como seleccionado
         bottomNavigation.selectedItemId = R.id.nav_rooms
 
         bottomNavigation.setOnItemSelectedListener { item ->
             when (item.itemId) {
                 R.id.nav_home -> {
-                    // ✅ Regresar a la actividad correcta según de dónde venimos
-                    if (fromRenterDashboard) {
-                        // Venimos desde RenterDashboard, regresar ahí
-                        val intent = Intent(this, RenterDashboardActivity::class.java)
+                    // ✅ CORREGIDO: Verificar si es RENTER antes de navegar
+                    lifecycleScope.launch {
+                        val isRenter = checkIfUserIsRenter()
+
+                        val intent = if (isRenter) {
+                            // Si es arrendatario, ir al Dashboard de Arrendatario
+                            Intent(this@AllRoomsActivity, RenterDashboardActivity::class.java)
+                        } else {
+                            // Si es usuario normal, ir a MainActivity
+                            Intent(this@AllRoomsActivity, MainActivity::class.java)
+                        }
+
                         intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
                         startActivity(intent)
-                    } else {
-                        // Venimos desde MainActivity normal
-                        val intent = Intent(this, MainActivity::class.java)
-                        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                        startActivity(intent)
+                        finish()
                     }
-                    finish()
                     true
                 }
 
@@ -154,21 +161,53 @@ class AllRoomsActivity : AppCompatActivity() {
         }
     }
 
+    // ✅ NUEVA FUNCIÓN: Verificar si el usuario es RENTER
+    private suspend fun checkIfUserIsRenter(): Boolean {
+        return try {
+            val currentUser = FirebaseAuth.getInstance().currentUser
+            if (currentUser == null) {
+                Log.w(TAG, "⚠️ Usuario no autenticado")
+                return false
+            }
+
+            val uid = currentUser.uid
+            val firestore = FirebaseFirestore.getInstance()
+
+            // Verificar en la colección 'renters'
+            val renterDoc = firestore.collection("renters")
+                .document(uid)
+                .get()
+                .await()
+
+            val isRenter = renterDoc.exists()
+            Log.d(TAG, "✅ ¿Es arrendatario?: $isRenter")
+
+            isRenter
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error verificando rol de usuario: ${e.message}")
+            false
+        }
+    }
+
     override fun onResume() {
         super.onResume()
-        // ✅ Asegurar que "Rooms" esté seleccionado cuando regresamos
+        // Asegurar que "Rooms" esté seleccionado cuando regresamos
         bottomNavigation.selectedItemId = R.id.nav_rooms
     }
 
-    // ✅ NUEVO: Manejar el botón "Atrás"
+    // ✅ Manejar el botón "Atrás"
     override fun onBackPressed() {
-        if (fromRenterDashboard) {
-            val intent = Intent(this, RenterDashboardActivity::class.java)
-            intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-            startActivity(intent)
-            finish()
-        } else {
-            super.onBackPressed()
+        lifecycleScope.launch {
+            val isRenter = checkIfUserIsRenter()
+
+            if (isRenter) {
+                val intent = Intent(this@AllRoomsActivity, RenterDashboardActivity::class.java)
+                intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                startActivity(intent)
+                finish()
+            } else {
+                super.onBackPressed()
+            }
         }
     }
 }
