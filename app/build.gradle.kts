@@ -8,15 +8,15 @@ plugins {
 }
 
 android {
-    namespace = "com.example.roomuttt"
+    namespace = "com.roomu.app"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.example.roomuttt"
+        applicationId = "com.roomu.app"
         minSdk = 24
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 3
+        versionName = "1.0.2"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

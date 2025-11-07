@@ -107,7 +107,7 @@
         <!-- API Key de Google Maps -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyBMOJK_aY1wvN1jHoE13Dm1_r7BUrYB7RQ" />
+            android:value="AIzaSyDI8U5k2MMq-dC0jCPpEGjy_jk4reFYR3o" />
 
     </application>
 

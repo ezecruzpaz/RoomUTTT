@@ -2,7 +2,7 @@
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
 
-    <!-- Gradiente azul similar al de tu app -->
+    <!-- Gradiente azul similar al de tu com.roomu.app -->
     <gradient
         android:startColor="#4A90E2"
         android:endColor="#357ABD"

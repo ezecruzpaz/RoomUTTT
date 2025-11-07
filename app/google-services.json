@@ -7,17 +7,33 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:626787040705:android:69079a3741942eb097c340",
+        "mobilesdk_app_id": "1:626787040705:android:7acea212db93e4d097c340",
         "android_client_info": {
-          "package_name": "com.example.roomuttt"
+          "package_name": "com.roomu.app"
         }
       },
       "oauth_client": [
         {
-          "client_id": "626787040705-1fnj7bqo4i0pegmvrjodfaccc0q9p3ei.apps.googleusercontent.com",
+          "client_id": "626787040705-65344jj9lbdf6ul6lgol3vqvk8letnoo.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.example.roomuttt",
+            "package_name": "com.roomu.app",
+            "certificate_hash": "c785a18e3c8b164b6205ffed8f0f74dc988e8e14"
+          }
+        },
+        {
+          "client_id": "626787040705-ei7966mc0scmpauq0de1it518pn3s6u2.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.roomu.app",
+            "certificate_hash": "afcbbb3ce8bfc45a90fcd064652b395f6802bb32"
+          }
+        },
+        {
+          "client_id": "626787040705-g79se3s0gu9fcii1j2m23ps15t34k1mk.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.roomu.app",
             "certificate_hash": "6e985916808f9fae6b3bbe08430fb664a0c63f17"
           }
         },
@@ -28,7 +44,7 @@
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyBMOJK_aY1wvN1jHoE13Dm1_r7BUrYB7RQ"
+          "current_key": "AIzaSyCwLhZX_s-TqLNLwt9ka-nKGlQv3xO1Yik"
         }
       ],
       "services": {
