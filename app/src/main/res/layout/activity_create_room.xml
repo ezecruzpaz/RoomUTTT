@@ -246,7 +246,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp" />
 
-            <!-- Mapa más grande y con mejor interacción -->
+            <!-- Mapa con botón de expandir a la IZQUIERDA -->
             <androidx.cardview.widget.CardView
                 android:id="@+id/map_card"
                 android:layout_width="match_parent"
@@ -276,39 +276,81 @@
                         android:src="@drawable/ic_location_pin"
                         android:elevation="10dp" />
 
-                    <!-- Botones de control -->
-                    <LinearLayout
+                    <!-- ✅ Botón para expandir mapa - LADO IZQUIERDO -->
+                    <com.google.android.material.floatingactionbutton.FloatingActionButton
+                        android:id="@+id/btn_expand_map"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="bottom|start"
+                        android:layout_margin="16dp"
+                        android:contentDescription="Expandir mapa"
+                        android:src="@drawable/ic_fullscreen"
+                        app:tint="@color/white"
+                        app:backgroundTint="@color/black"
+                        app:fabSize="normal"
+                        android:elevation="6dp" />
+
+                    <!-- Hint de navegación -->
+                    <androidx.cardview.widget.CardView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_gravity="top|end"
                         android:layout_margin="8dp"
-                        android:orientation="vertical"
-                        android:background="#80000000"
-                        android:padding="4dp"
-                        android:elevation="5dp">
+                        app:cardCornerRadius="8dp"
+                        app:cardElevation="4dp">
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Mueve el mapa"
-                            android:textColor="@color/white"
+                            android:text="💡 Mueve el mapa"
+                            android:textColor="@android:color/black"
                             android:textSize="12sp"
-                            android:padding="4dp" />
-                    </LinearLayout>
+                            android:padding="8dp"
+                            android:background="@android:color/white" />
+                    </androidx.cardview.widget.CardView>
 
                 </FrameLayout>
             </androidx.cardview.widget.CardView>
 
-            <!-- Hint de ubicación -->
-            <TextView
-                android:layout_width="wrap_content"
+            <!-- Hint de ubicación mejorado -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
-                android:text="💡 Toca y arrastra el mapa para ajustar la ubicación exacta\n🔍 Usa dos dedos para hacer zoom"
-                android:textColor="@color/darker_gray"
-                android:textSize="14sp"
-                android:gravity="center"
-                android:layout_gravity="center" />
+                app:cardCornerRadius="12dp"
+                app:cardElevation="2dp"
+                android:backgroundTint="#F5F5F5">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="12dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="📍 Toca y arrastra el mapa para ajustar la ubicación exacta"
+                        android:textColor="@color/darker_gray"
+                        android:textSize="13sp"
+                        android:layout_marginBottom="4dp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="🔍 Usa dos dedos para hacer zoom"
+                        android:textColor="@color/darker_gray"
+                        android:textSize="13sp"
+                        android:layout_marginBottom="4dp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="🗺️ Presiona el botón ⤢ para pantalla completa"
+                        android:textColor="@color/darker_gray"
+                        android:textSize="13sp" />
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
 
             <!-- Imágenes -->
             <TextView

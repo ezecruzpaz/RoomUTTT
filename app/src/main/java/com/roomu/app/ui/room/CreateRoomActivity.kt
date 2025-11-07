@@ -80,6 +80,8 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
     private var googleMap: GoogleMap? = null
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private var currentLocation: LatLng? = null
+    private lateinit var btnExpandMap: com.google.android.material.floatingactionbutton.FloatingActionButton
+
 
     private val selectedImageUris = mutableListOf<Uri>()
     private val TAG = "CreateRoomActivity"
@@ -136,6 +138,30 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
             showPermissionDeniedDialog()
         }
     }
+    private val fullscreenMapLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == RESULT_OK) {
+            val data = result.data
+            val lat = data?.getDoubleExtra("latitude", 0.0) ?: 0.0
+            val lng = data?.getDoubleExtra("longitude", 0.0) ?: 0.0
+
+            if (lat != 0.0 && lng != 0.0) {
+                currentLocation = LatLng(lat, lng)
+                googleMap?.animateCamera(CameraUpdateFactory.newLatLngZoom(currentLocation!!, 17f))
+
+                Toast.makeText(
+                    this,
+                    "✅ Ubicación seleccionada",
+                    Toast.LENGTH_SHORT
+                ).show()
+
+                Log.d(TAG, "📍 Ubicación desde pantalla completa: $lat, $lng")
+            }
+        }
+    }
+
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -177,6 +203,8 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
         centerMarkerView = findViewById(R.id.center_marker)
         scrollView = findViewById(R.id.scroll_view)
         bottomNavigation = findViewById(R.id.bottom_nav)
+        btnExpandMap = findViewById(R.id.btn_expand_map)
+
 
         // Inicializar contadores
         tvImageCount.text = "0/$MAX_IMAGES imagen(es) seleccionada(s)"
@@ -271,6 +299,14 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
 // ✅ Listener para el icono de notificaciones
         findViewById<ImageView>(R.id.iv_notifications).setOnClickListener {
             Toast.makeText(this, "🔔 Notificaciones próximamente", Toast.LENGTH_SHORT).show()
+        }
+
+
+        btnExpandMap.setOnClickListener {
+            val intent = Intent(this, FullscreenMapActivity::class.java)
+            intent.putExtra("latitude", currentLocation?.latitude ?: 20.0910)
+            intent.putExtra("longitude", currentLocation?.longitude ?: -98.7624)
+            fullscreenMapLauncher.launch(intent)
         }
     }
 
