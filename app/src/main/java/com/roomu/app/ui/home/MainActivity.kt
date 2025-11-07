@@ -54,7 +54,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var ivProfile: ImageView
     private lateinit var ivNotifications: ImageView
     private lateinit var recyclerRooms: RecyclerView
-    private lateinit var btnViewMore: Button
     private lateinit var progressBar: ProgressBar
     private lateinit var tvNoRooms: TextView
     private lateinit var bottomNavigation: BottomNavigationView
@@ -97,7 +96,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
                     if (renterDoc.exists()) {
                         // Es arrendatario, redirigir a RenterDashboard
-                        Log.d(TAG, "✅ Usuario es arrendatario, redirigiendo...")
                         val intent = Intent(this@MainActivity, com.roomu.app.ui.renter.RenterDashboardActivity::class.java)
                         intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
                         startActivity(intent)
@@ -105,7 +103,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                         return@launch
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error verificando rol: ${e.message}")
                 }
             }
         }
@@ -140,7 +137,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         ivNotifications = findViewById(R.id.iv_notifications)
         ivLogout = findViewById(R.id.iv_logout) // ✅ NUEVO
         recyclerRooms = findViewById(R.id.recycler_rooms)
-        btnViewMore = findViewById(R.id.btn_view_more)
         progressBar = findViewById(R.id.progress_bar)
         tvNoRooms = findViewById(R.id.tv_no_rooms)
         bottomNavigation = findViewById(R.id.bottom_navigation)
@@ -148,7 +144,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         supportActionBar?.title = "Inicio"
         supportActionBar?.setDisplayHomeAsUpEnabled(false)
     }
-        private fun setupSearchViewStyle() {
+    private fun setupSearchViewStyle() {
         try {
             val searchEditTextId = searchView.context.resources.getIdentifier(
                 "search_src_text",
@@ -162,18 +158,15 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                     setTextColor(android.graphics.Color.BLACK)
                     setHintTextColor(android.graphics.Color.GRAY)
                     textSize = 14f
-                    Log.d(TAG, "✅ SearchView configurado correctamente")
                 }
             } else {
                 findSearchEditText(searchView)?.apply {
                     setTextColor(android.graphics.Color.BLACK)
                     setHintTextColor(android.graphics.Color.GRAY)
                     textSize = 14f
-                    Log.d(TAG, "✅ SearchView configurado con método alternativo")
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Error configurando SearchView: ${e.message}")
         }
     }
 
@@ -195,7 +188,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
             override fun onQueryTextSubmit(query: String?): Boolean {
                 if (!query.isNullOrEmpty()) {
-                    Log.d(TAG, "🔍 Búsqueda enviada: '$query'")
                     searchPlaceAndRooms(query)
                     searchView.clearFocus()
                 }
@@ -204,7 +196,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
             override fun onQueryTextChange(newText: String?): Boolean {
                 if (newText.isNullOrEmpty()) {
-                    Log.d(TAG, "🔍 Búsqueda vacía - Regresando a ubicación actual")
                     viewModel.searchRooms("")
                 }
                 return true
@@ -219,15 +210,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             Toast.makeText(this, "🔔 Notificaciones", Toast.LENGTH_SHORT).show()
         }
 
-        // ✅ NUEVO: Listener para cerrar sesión
         ivLogout.setOnClickListener {
             showLogoutConfirmationDialog()
-        }
-
-        btnViewMore.setOnClickListener {
-            val intent = Intent(this, AllRoomsActivity::class.java)
-            intent.putExtra("allRooms", ArrayList(viewModel.getAllRooms()))
-            startActivity(intent)
         }
     }
 
@@ -275,7 +259,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 }
                 .show()
 
-            Log.d(TAG, "✅ Sesión cerrada exitosamente")
         } catch (e: Exception) {
             loadingDialog.dismissWithAnimation()
 
@@ -284,12 +267,10 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 .setContentText("No se pudo cerrar sesión: ${e.message}")
                 .show()
 
-            Log.e(TAG, "❌ Error al cerrar sesión: ${e.message}")
         }
     }
 
     private fun searchPlaceAndRooms(query: String) {
-        Log.d(TAG, "🔍 Buscando lugar: '$query'")
 
         sessionToken = AutocompleteSessionToken.newInstance()
 
@@ -304,10 +285,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
                 if (predictions.isNotEmpty()) {
                     val firstPrediction = predictions[0]
-                    Log.d(TAG, "📍 Lugar encontrado: ${firstPrediction.getFullText(null)}")
                     fetchPlaceDetails(firstPrediction.placeId, query)
                 } else {
-                    Log.w(TAG, "⚠️ No se encontraron lugares para '$query'")
                     viewModel.searchRooms(query)
 
                     SweetAlertDialog(this, SweetAlertDialog.WARNING_TYPE)
@@ -317,7 +296,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 }
             }
             .addOnFailureListener { exception ->
-                Log.e(TAG, "❌ Error buscando lugar: ${exception.message}")
                 viewModel.searchRooms(query)
             }
     }
@@ -333,7 +311,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             .addOnSuccessListener { response ->
                 val place = response.place
                 place.latLng?.let { latLng ->
-                    Log.d(TAG, "🎯 Coordenadas obtenidas: ${latLng.latitude}, ${latLng.longitude}")
                     viewModel.updateLocationAndFilter(latLng.latitude, latLng.longitude)
 
                     googleMap?.animateCamera(
@@ -345,22 +322,19 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                         .setContentText(place.name ?: "Lugar encontrado")
                         .show()
                 } ?: run {
-                    Log.w(TAG, "⚠️ El lugar no tiene coordenadas")
                     viewModel.searchRooms(originalQuery)
                 }
             }
             .addOnFailureListener { exception ->
-                Log.e(TAG, "❌ Error obteniendo detalles: ${exception.message}")
                 viewModel.searchRooms(originalQuery)
             }
     }
 
     private fun setupRecyclerView() {
-        Log.d(TAG, "🔧 Configurando RecyclerView...")
 
         recyclerRooms.layoutManager = LinearLayoutManager(this)
-        recyclerRooms.setHasFixedSize(false)
-        recyclerRooms.isNestedScrollingEnabled = true
+        recyclerRooms.setHasFixedSize(false)  // ✅ Cambiar a false
+        recyclerRooms.isNestedScrollingEnabled = false  // ✅ Cambiar a false
     }
 
     private fun setupBottomNavigation() {
@@ -386,6 +360,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
+    // ✅ LÍNEA ~391-405 EN observeViewModel() - ELIMINAR O MODIFICAR:
     private fun observeViewModel() {
         lifecycleScope.launch {
             launch {
@@ -396,12 +371,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
             launch {
                 viewModel.rooms.collect { rooms ->
-                    Log.d(TAG, "📦 Recibidos ${rooms.size} cuartos para mostrar")
-
                     if (rooms.isEmpty()) {
                         tvNoRooms.visibility = View.VISIBLE
                         recyclerRooms.visibility = View.GONE
-                        btnViewMore.visibility = View.GONE
                     } else {
                         tvNoRooms.visibility = View.GONE
                         recyclerRooms.visibility = View.VISIBLE
@@ -422,23 +394,13 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
                         recyclerRooms.adapter = roomAdapter
                         roomAdapter.submitList(rooms)
-
-                        Log.d(TAG, "✅ Lista actualizada con ${rooms.size} cuartos (de ${allRooms.size} totales)")
                     }
-                }
-            }
-
-            launch {
-                viewModel.showViewMoreButton.collect { showButton ->
-                    btnViewMore.visibility = if (showButton) View.VISIBLE else View.GONE
-                    Log.d(TAG, "🔘 Botón 'Ver más': ${if (showButton) "VISIBLE" else "OCULTO"}")
                 }
             }
         }
     }
 
     override fun onMapReady(googleMap: GoogleMap) {
-        Log.d(TAG, "🗺️ Mapa listo")
         this.googleMap = googleMap
         viewModel.initMap(googleMap)
 
@@ -484,7 +446,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         try {
             googleMap?.isMyLocationEnabled = true
         } catch (e: SecurityException) {
-            Log.e(TAG, "❌ Error al habilitar ubicación: ${e.message}")
         }
     }
 
@@ -572,9 +533,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         if (hasLocationPermission() && googleMap != null) {
             enableMyLocation()
         }
-
         // ✅ NUEVO: Recargar cuartos cada vez que la actividad vuelve a primer plano
-        Log.d(TAG, "🔄 onResume: Recargando cuartos...")
         viewModel.loadRooms()
     }
 
