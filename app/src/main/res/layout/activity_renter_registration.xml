@@ -30,8 +30,8 @@
             android:text="Convertirse en Arrendador"
             android:textColor="@color/black"
             android:textSize="18sp"
-        android:textStyle="bold"
-        android:gravity="center" />
+            android:textStyle="bold"
+            android:gravity="center" />
 
         <ImageView
             android:id="@+id/iv_close"
@@ -67,9 +67,9 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
                 android:layout_marginBottom="24dp"
-            android:text="Completa los siguientes datos para convertirte en arrendador."
-            android:textColor="@color/black"
-            android:textSize="16sp" />
+                android:text="Completa los siguientes datos para convertirte en arrendador."
+                android:textColor="@color/black"
+                android:textSize="16sp" />
 
             <!-- Nombre -->
             <com.google.android.material.textfield.TextInputLayout
@@ -108,36 +108,73 @@
                     android:hint="Teléfono" />
             </com.google.android.material.textfield.TextInputLayout>
 
-            <!-- Dirección -->
-            <com.google.android.material.textfield.TextInputLayout
+            <!-- Ubicación con GPS -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:text="Escribe tu ubicación o usa el GPS"
+                android:textColor="@color/darker_gray"
+                android:textSize="14sp" />
+
+            <RelativeLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
-                android:background="@drawable/input_background"
-                app:boxBackgroundMode="none"
-                app:hintTextColor="@color/darker_gray">
+                android:layout_marginBottom="16dp">
 
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/et_direccion"
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/til_direccion"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:padding="16dp"
-                    android:textColor="@color/black"
-                    android:hint="Dirección" />
-            </com.google.android.material.textfield.TextInputLayout>
+                    android:background="@drawable/input_background"
+                    app:boxBackgroundMode="none"
+                    app:hintTextColor="@color/darker_gray">
 
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/et_direccion"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:padding="16dp"
+                        android:paddingEnd="60dp"
+                        android:textColor="@color/black"
+                        android:hint="20.009774, -99.3455449" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <!-- Botón GPS (flotante sobre el input) -->
+                <androidx.cardview.widget.CardView
+                    android:id="@+id/btn_gps"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    android:layout_marginEnd="8dp"
+                    app:cardCornerRadius="24dp"
+                    app:cardElevation="2dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:foreground="?android:attr/selectableItemBackground">
+
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:layout_gravity="center"
+                        android:src="@android:drawable/ic_menu_mylocation"
+                        app:tint="#FF5252" />
+                </androidx.cardview.widget.CardView>
+
+            </RelativeLayout>
 
             <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/btn_submit_renter"
                 android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:layout_marginTop="16dp"
-            android:background="@drawable/button_black_rounded"
-            android:text="Convertirse en Arrendador"
-            android:textAllCaps="false"
-            android:textColor="@color/white"
-            android:textSize="18sp"
-            android:textStyle="bold" />
+                android:layout_height="56dp"
+                android:layout_marginTop="16dp"
+                android:background="@drawable/button_black_rounded"
+                android:text="Convertirse en Arrendador"
+                android:textAllCaps="false"
+                android:textColor="@color/white"
+                android:textSize="18sp"
+                android:textStyle="bold" />
 
         </LinearLayout>
 
