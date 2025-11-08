@@ -37,7 +37,9 @@ import com.google.android.libraries.places.api.model.Place
 import com.google.android.libraries.places.api.net.FindAutocompletePredictionsRequest
 import com.google.android.libraries.places.api.net.PlacesClient
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import com.roomu.app.R
+import com.roomu.app.ui.chat.ChatsListActivity
 import com.roomu.app.ui.home.adapter.RoomAdapter
 import com.roomu.app.ui.home.viewmodel.MainViewModel
 import com.roomu.app.ui.profile.ProfileActivity
@@ -206,8 +208,10 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             startActivity(Intent(this, ProfileActivity::class.java))
         }
 
+        // ✅ ACTUALIZADO: Abre ChatsListActivity en lugar de mostrar Toast
         ivNotifications.setOnClickListener {
-            Toast.makeText(this, "🔔 Notificaciones", Toast.LENGTH_SHORT).show()
+            val intent = Intent(this, ChatsListActivity::class.java)
+            startActivity(intent)
         }
 
         ivLogout.setOnClickListener {
@@ -339,7 +343,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private fun setupBottomNavigation() {
         bottomNavigation.selectedItemId = R.id.nav_home
-
         bottomNavigation.setOnItemSelectedListener { item ->
             when (item.itemId) {
                 R.id.nav_home -> true
@@ -352,11 +355,36 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 }
 
                 R.id.nav_chat -> {
-                    Toast.makeText(this, "💬 Chat próximamente", Toast.LENGTH_SHORT).show()
-                    false
+                    val intent = Intent(this, ChatsListActivity::class.java).apply {
+                        putExtra("isRenter", false) // Es inquilino
+                    }
+                    startActivity(intent)
+                    true
                 }
+
                 else -> false
             }
+        }
+    }
+
+
+    private suspend fun checkIfUserIsRenter(): Boolean {
+        return try {
+            val currentUser = FirebaseAuth.getInstance().currentUser
+            if (currentUser == null) return false
+
+            val uid = currentUser.uid
+            val firestore = FirebaseFirestore.getInstance()
+
+            val renterDoc = firestore.collection("renters")
+                .document(uid)
+                .get()
+                .await()
+
+            renterDoc.exists()
+        } catch (e: Exception) {
+            Log.e("CheckRenter", "Error: ${e.message}")
+            false
         }
     }
 

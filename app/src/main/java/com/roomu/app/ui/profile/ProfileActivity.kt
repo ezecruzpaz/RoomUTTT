@@ -526,30 +526,41 @@ class ProfileActivity : AppCompatActivity() {
                 }
 
                 R.id.nav_rooms -> {
-                    // Solo para usuarios normales
                     lifecycleScope.launch {
                         val isRenter = viewModel.isRenter.value
+                        val uid = auth.currentUser?.uid
+
+                        if (uid == null) {
+                            Toast.makeText(this@ProfileActivity, "Usuario no autenticado", Toast.LENGTH_SHORT).show()
+                            return@launch
+                        }
 
                         if (isRenter) {
-                            Toast.makeText(
-                                this@ProfileActivity,
-                                "Como arrendatario, ve a 'Inicio' para ver tus cuartos",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        } else {
-                            val filteredRooms = mainViewModel.getAllRooms()
+                            mainViewModel.loadRooms()
+                            val allRooms = mainViewModel.allRooms.first { it.isNotEmpty() }
+                            val myRooms = allRooms.filter { it.userId == uid }
 
-                            if (filteredRooms.isNotEmpty()) {
-                                val intent = Intent(this@ProfileActivity, AllRoomsActivity::class.java)
-                                intent.putExtra("allRooms", ArrayList(filteredRooms))
+                            if (myRooms.isNotEmpty()) {
+                                val intent = Intent(this@ProfileActivity, AllRoomsActivity::class.java).apply {
+                                    putExtra("allRooms", ArrayList(myRooms))
+                                    putExtra("isRenterView", true)
+                                    putExtra("fromRenterDashboard", true)
+                                }
                                 startActivity(intent)
                                 finish()
                             } else {
-                                Toast.makeText(
-                                    this@ProfileActivity,
-                                    "No hay cuartos disponibles en tu área",
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                                Toast.makeText(this@ProfileActivity, "Aún no tienes cuartos publicados", Toast.LENGTH_SHORT).show()
+                            }
+                        } else {
+                            val filteredRooms = mainViewModel.getAllRooms()
+                            if (filteredRooms.isNotEmpty()) {
+                                val intent = Intent(this@ProfileActivity, AllRoomsActivity::class.java).apply {
+                                    putExtra("allRooms", ArrayList(filteredRooms))
+                                }
+                                startActivity(intent)
+                                finish()
+                            } else {
+                                Toast.makeText(this@ProfileActivity, "No hay cuartos disponibles en tu área", Toast.LENGTH_SHORT).show()
                             }
                         }
                     }
@@ -557,8 +568,14 @@ class ProfileActivity : AppCompatActivity() {
                 }
 
                 R.id.nav_chat -> {
-                    Toast.makeText(this, "💬 Chat próximamente", Toast.LENGTH_SHORT).show()
-                    false
+                    lifecycleScope.launch {
+                        val isRenter = viewModel.isRenter.value
+                        val intent = Intent(this@ProfileActivity, com.roomu.app.ui.chat.ChatsListActivity::class.java).apply {
+                            putExtra("isRenter", isRenter)
+                        }
+                        startActivity(intent)
+                    }
+                    true
                 }
 
                 else -> false

@@ -28,8 +28,13 @@ import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.roomu.app.databinding.ActivityRoomDetailBinding
 import com.roomu.app.domain.model.RoomData
+import com.roomu.app.ui.chat.ChatActivity
+import com.roomu.app.ui.chat.ChatsListActivity
 import com.roomu.app.ui.home.MainActivity
+import com.roomu.app.ui.home.viewmodel.MainViewModel
+import com.roomu.app.ui.profile.ProfileActivity
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -41,23 +46,16 @@ class RoomDetailActivity : AppCompatActivity(), OnMapReadyCallback {
     private val TAG = "RoomDetailActivity"
     private var room: RoomData? = null
     private var googleMap: GoogleMap? = null
-    private val mainViewModel: com.roomu.app.ui.home.viewmodel.MainViewModel by viewModels()
+    private val mainViewModel: MainViewModel by viewModels()
+    private val firestore = FirebaseFirestore.getInstance()
 
-    // Views
-    private lateinit var ivBack: ImageView
-    private lateinit var imageViewPager: ViewPager2
-    private lateinit var tabIndicator: TabLayout
-    private lateinit var tvRoomName: TextView
-    private lateinit var tvRoomPrice: TextView
-    private lateinit var tvRoomAddress: TextView
-    private lateinit var tvDescription: TextView
-    private lateinit var servicesContainer: LinearLayout
-    private lateinit var btnContactContainer: LinearLayout
-    private lateinit var bottomNavigation: BottomNavigationView
+    // ✅ DATA BINDING
+    private lateinit var binding: ActivityRoomDetailBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_room_detail)
+        binding = ActivityRoomDetailBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
         val roomId = intent.getStringExtra("room_id")
         val allRooms = intent.getSerializableExtra("allRooms") as? ArrayList<RoomData>
@@ -68,51 +66,51 @@ class RoomDetailActivity : AppCompatActivity(), OnMapReadyCallback {
         }
 
         room = allRooms.find { it.id == roomId }
-
         if (room == null) {
-            Log.e(TAG, "❌ No se encontró el cuarto con ID: $roomId")
+            Log.e(TAG, "No se encontró el cuarto con ID: $roomId")
             finish()
             return
         }
 
-        Log.d(TAG, "✅ Cuarto encontrado: ${room?.nombre}")
+        Log.d(TAG, "Cuarto encontrado: ${room?.nombre}")
 
-        initViews()
+        // ✅ OBTENER NOMBRE DEL ARRENDATARIO
+        lifecycleScope.launch {
+            room?.let {
+                fetchRenterName(it)
+            }
+        }
+
         setupMap()
         setupData()
         setupListeners()
         setupBottomNavigation()
 
-        // Cargar TODOS los cuartos disponibles
+        // Cargar cuartos (opcional)
         lifecycleScope.launch {
             try {
                 mainViewModel.loadRooms()
-                Log.d(TAG, "✅ Cuartos cargados: ${mainViewModel.allRooms.value.size}")
             } catch (e: Exception) {
                 Log.e(TAG, "Error cargando cuartos: ${e.message}")
             }
         }
     }
 
-    private fun initViews() {
-        ivBack = findViewById(R.id.iv_back)
-        imageViewPager = findViewById(R.id.image_viewpager)
-        tabIndicator = findViewById(R.id.tab_indicator)
-        tvRoomName = findViewById(R.id.tv_room_name)
-        tvRoomPrice = findViewById(R.id.tv_room_price)
-        tvRoomAddress = findViewById(R.id.tv_room_address)
-        tvDescription = findViewById(R.id.tv_description)
-        servicesContainer = findViewById(R.id.services_container)
-        btnContactContainer = findViewById(R.id.btn_contact_container)
-        bottomNavigation = findViewById(R.id.bottom_navigation)
-
-        // ✅ Listeners para iconos del header
-        findViewById<ImageView>(R.id.iv_profile).setOnClickListener {
-            startActivity(Intent(this, com.roomu.app.ui.profile.ProfileActivity::class.java))
-        }
-
-        findViewById<ImageView>(R.id.iv_notifications).setOnClickListener {
-            Toast.makeText(this, "🔔 Notificaciones próximamente", Toast.LENGTH_SHORT).show()
+    // ✅ OBTENER NOMBRE DEL ARRENDATARIO DESDE FIRESTORE
+    private suspend fun fetchRenterName(roomData: RoomData) {
+        try {
+            val doc = firestore.collection("users").document(roomData.userId).get().await()
+            // ✅ Buscar en este orden: nombreCompleto, name, displayName, nombre
+            val name = doc.getString("nombreCompleto")
+                ?: doc.getString("name")
+                ?: doc.getString("displayName")
+                ?: doc.getString("nombre")
+                ?: "Usuario"
+            roomData.renterName = name
+            Log.d(TAG, "✅ Nombre del arrendatario obtenido: $name (userId: ${roomData.userId})")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error obteniendo nombre del arrendatario: ${e.message}")
+            roomData.renterName = "Usuario"
         }
     }
 
@@ -129,10 +127,10 @@ class RoomDetailActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private fun setupData() {
         room?.let { roomData ->
-            tvRoomName.text = roomData.nombre
-            tvRoomPrice.text = "$${roomData.precio} MXN / mes"
-            tvRoomAddress.text = getReadableAddress(roomData.ubicacion)
-            tvDescription.text = roomData.descripcion ?: "Sin descripción disponible"
+            binding.tvRoomName.text = roomData.nombre
+            binding.tvRoomPrice.text = "$${roomData.precio} MXN / mes"
+            binding.tvRoomAddress.text = getReadableAddress(roomData.ubicacion)
+            binding.tvDescription.text = roomData.descripcion ?: "Sin descripción disponible"
 
             setupImageGallery(roomData.imagenes)
             setupServices(roomData)
@@ -145,11 +143,9 @@ class RoomDetailActivity : AppCompatActivity(), OnMapReadyCallback {
             if (parts.size == 2) {
                 val lat = parts[0].toDoubleOrNull()
                 val lng = parts[1].toDoubleOrNull()
-
                 if (lat != null && lng != null) {
                     val geocoder = Geocoder(this, Locale.getDefault())
                     val addresses = geocoder.getFromLocation(lat, lng, 1)
-
                     if (!addresses.isNullOrEmpty()) {
                         val address = addresses[0]
                         val addressText = buildString {
@@ -184,14 +180,13 @@ class RoomDetailActivity : AppCompatActivity(), OnMapReadyCallback {
         )
 
         val adapter = ImagePagerAdapter(imageList)
-        imageViewPager.adapter = adapter
-        TabLayoutMediator(tabIndicator, imageViewPager) { _, _ -> }.attach()
-
-        Log.d(TAG, "✅ Galería configurada con ${imageList.size} imágenes")
+        binding.imageViewpager.adapter = adapter
+        TabLayoutMediator(binding.tabIndicator, binding.imageViewpager) { _, _ -> }.attach()
+        Log.d(TAG, "Galería configurada con ${imageList.size} imágenes")
     }
 
     private fun setupServices(roomData: RoomData) {
-        servicesContainer.removeAllViews()
+        binding.servicesContainer.removeAllViews()
 
         val allServicesText = roomData.servicios.firstOrNull() ?: ""
         val servicesList = allServicesText.split(",").map { it.trim() }.filter { it.isNotEmpty() }
@@ -202,38 +197,26 @@ class RoomDetailActivity : AppCompatActivity(), OnMapReadyCallback {
             when {
                 servicio.contains("wifi", true) || servicio.contains("internet", true) ->
                     services.add("Wifi" to R.drawable.ic_wifi)
-
                 servicio.contains("estacionamiento", true) || servicio.contains("parking", true) ->
                     services.add("Estacionamiento" to R.drawable.ic_parking)
-
                 servicio.contains("cocina", true) ->
                     services.add("Cocina" to R.drawable.ic_kitchen)
-
                 servicio.contains("baño", true) ->
                     services.add("Baño privado" to R.drawable.ic_bathroom)
-
                 servicio.contains("aire acondicionado", true) || servicio.contains("clima", true) ->
                     services.add("Aire Acondicionado" to R.drawable.ic_ac)
-
                 servicio.contains("tv", true) || servicio.contains("televisión", true) ->
                     services.add("TV" to R.drawable.ic_tv)
-
                 servicio.contains("lavadora", true) ->
                     services.add("Lavadora" to R.drawable.ic_washing_machine)
-
                 servicio.contains("agua", true) ->
                     services.add("Agua Caliente" to R.drawable.ic_water)
-
                 servicio.contains("seguridad", true) ->
                     services.add("Seguridad 24/7" to R.drawable.ic_security)
-
                 servicio.contains("luz", true) || servicio.contains("gas", true) || servicio.contains("incluidos", true) ->
                     services.add("Servicios Incluidos" to R.drawable.ic_services)
-
                 servicio.contains("mobiliario", true) || servicio.contains("muebles", true) ->
                     services.add("Mobiliario" to R.drawable.ic_furniture)
-
-                // ✅ CASO ELSE: Si no coincide con nada, lo agregamos con ícono genérico
                 else -> services.add(servicio to R.drawable.ic_service_default)
             }
         }
@@ -241,8 +224,6 @@ class RoomDetailActivity : AppCompatActivity(), OnMapReadyCallback {
         if (services.isEmpty()) {
             services.add("Sin servicios" to R.drawable.ic_wifi)
         }
-
-        Log.d(TAG, "✅ ${services.size} servicios encontrados: ${services.map { it.first }}")
 
         var currentRow: LinearLayout? = null
         services.forEachIndexed { index, (name, icon) ->
@@ -252,30 +233,19 @@ class RoomDetailActivity : AppCompatActivity(), OnMapReadyCallback {
                     layoutParams = LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.MATCH_PARENT,
                         LinearLayout.LayoutParams.WRAP_CONTENT
-                    ).apply {
-                        bottomMargin = 8.dpToPx()
-                    }
+                    ).apply { bottomMargin = 8.dpToPx() }
                 }
-                servicesContainer.addView(currentRow)
+                binding.servicesContainer.addView(currentRow)
             }
 
             val serviceChip = LayoutInflater.from(this)
                 .inflate(R.layout.item_service_chip, currentRow, false) as LinearLayout
 
-            val iconView = serviceChip.findViewById<ImageView>(R.id.iv_service_icon)
-            val textView = serviceChip.findViewById<TextView>(R.id.tv_service_name)
+            serviceChip.findViewById<ImageView>(R.id.iv_service_icon)?.setImageResource(icon)
+            serviceChip.findViewById<TextView>(R.id.tv_service_name)?.text = name
 
-            iconView?.setImageResource(icon)
-            textView?.text = name
-
-            serviceChip.layoutParams = LinearLayout.LayoutParams(
-                0,
-                55.dpToPx(),
-                1f
-            ).apply {
-                if (index % 3 != 2) {
-                    marginEnd = 6.dpToPx()
-                }
+            serviceChip.layoutParams = LinearLayout.LayoutParams(0, 55.dpToPx(), 1f).apply {
+                if (index % 3 != 2) marginEnd = 6.dpToPx()
             }
 
             currentRow?.addView(serviceChip)
@@ -283,50 +253,80 @@ class RoomDetailActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     private fun setupListeners() {
-        ivBack.setOnClickListener {
-            finish()
+        binding.btnContactContainer.setOnClickListener {
+            room?.let { roomData ->
+                lifecycleScope.launch {
+                    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+                    if (currentUserId == null) {
+                        Toast.makeText(this@RoomDetailActivity, "Inicia sesión para chatear", Toast.LENGTH_SHORT).show()
+                        return@launch
+                    }
+
+                    // ✅ Evitar que el renter se escriba a sí mismo
+                    if (currentUserId == roomData.userId) {
+                        Toast.makeText(this@RoomDetailActivity, "Eres el dueño de este cuarto", Toast.LENGTH_SHORT).show()
+                        return@launch
+                    }
+
+                    val predefinedMessage = crearMensajePredefinido(roomData)
+
+                    val intent = Intent(this@RoomDetailActivity, ChatActivity::class.java).apply {
+                        putExtra("roomId", roomData.id)
+                        putExtra("renterId", roomData.userId)
+                        putExtra("renterName", roomData.renterName ?: "Arrendatario")
+                        putExtra("predefinedMessage", predefinedMessage)
+                        putExtra("roomName", roomData.nombre)
+                    }
+                    startActivity(intent)
+                }
+            }
         }
 
-        btnContactContainer.setOnClickListener {
-            room?.let { roomData ->
-                val phoneNumber = "5512345678"
-                val intent = Intent(Intent.ACTION_DIAL).apply {
-                    data = Uri.parse("tel:$phoneNumber")
-                }
-                startActivity(intent)
-            }
+        binding.ivProfile.setOnClickListener {
+            startActivity(Intent(this, ProfileActivity::class.java))
+        }
+
+        binding.ivNotifications.setOnClickListener {
+            Toast.makeText(this, "🔔 Notificaciones próximamente", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun crearMensajePredefinido(room: RoomData): String {
+        return buildString {
+            append("Buen día,\n\n")
+            append("Solicito información del cuarto:\n")
+            append("- ${room.nombre}\n")
+            append("- Precio: $${room.precio} MXN/mes\n")
+            append("- Ubicación: ${getReadableAddress(room.ubicacion)}\n")
+            append("- Capacidad: ${room.capacidad} persona${if (room.capacidad > 1) "s" else ""}\n")
+            append("- Servicios: ${room.servicios.joinToString(", ")}\n\n")
+            append("¿Puede enviarme más detalles y disponibilidad?\n\n")
+            append("Gracias.")
         }
     }
 
     private fun setupBottomNavigation() {
-        bottomNavigation.setOnItemSelectedListener { item ->
+        binding.bottomNavigation.setOnItemSelectedListener { item ->
             when (item.itemId) {
                 R.id.nav_home -> {
-                    // ✅ CORREGIDO: Verificar en Firestore si es RENTER
                     lifecycleScope.launch {
                         val isRenter = checkIfUserIsRenter()
-
                         val intent = if (isRenter) {
-                            // Usuario RENTER -> RenterDashboardActivity
                             Intent(this@RoomDetailActivity, com.roomu.app.ui.renter.RenterDashboardActivity::class.java)
                         } else {
-                            // Usuario STUDENT -> MainActivity
                             Intent(this@RoomDetailActivity, MainActivity::class.java)
                         }
-
                         intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
                         startActivity(intent)
                         finish()
                     }
                     true
                 }
-
                 R.id.nav_rooms -> {
                     lifecycleScope.launch {
                         try {
                             mainViewModel.loadRooms()
                             val allAvailableRooms = mainViewModel.allRooms.value
-
                             if (allAvailableRooms.isNotEmpty()) {
                                 val intent = Intent(this@RoomDetailActivity, AllRoomsActivity::class.java)
                                 intent.putExtra("allRooms", ArrayList(allAvailableRooms))
@@ -334,58 +334,36 @@ class RoomDetailActivity : AppCompatActivity(), OnMapReadyCallback {
                                 startActivity(intent)
                                 finish()
                             } else {
-                                Toast.makeText(
-                                    this@RoomDetailActivity,
-                                    "No hay cuartos disponibles",
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                                Toast.makeText(this@RoomDetailActivity, "No hay cuartos disponibles", Toast.LENGTH_SHORT).show()
                             }
                         } catch (e: Exception) {
-                            Log.e(TAG, "Error cargando cuartos: ${e.message}")
-                            Toast.makeText(
-                                this@RoomDetailActivity,
-                                "Error al cargar cuartos",
-                                Toast.LENGTH_SHORT
-                            ).show()
+                            Toast.makeText(this@RoomDetailActivity, "Error al cargar cuartos", Toast.LENGTH_SHORT).show()
                         }
                     }
                     true
                 }
-
                 R.id.nav_chat -> {
-                    Toast.makeText(this, "💬 Chat próximamente", Toast.LENGTH_SHORT).show()
-                    false
+                    lifecycleScope.launch {
+                        val isRenter = checkIfUserIsRenter()
+                        val intent = Intent(this@RoomDetailActivity, ChatsListActivity::class.java).apply {
+                            putExtra("isRenter", isRenter)
+                        }
+                        startActivity(intent)
+                    }
+                    true
                 }
-
                 else -> false
             }
         }
     }
 
-    // ✅ NUEVA FUNCIÓN: Verificar si el usuario es RENTER en Firestore
     private suspend fun checkIfUserIsRenter(): Boolean {
         return try {
-            val currentUser = FirebaseAuth.getInstance().currentUser
-            if (currentUser == null) {
-                Log.w(TAG, "⚠️ Usuario no autenticado")
-                return false
-            }
-
-            val uid = currentUser.uid
-            val firestore = FirebaseFirestore.getInstance()
-
-            // Verificar en la colección 'renters'
-            val renterDoc = firestore.collection("renters")
-                .document(uid)
-                .get()
-                .await()
-
-            val isRenter = renterDoc.exists()
-            Log.d(TAG, "✅ ¿Es arrendatario?: $isRenter")
-
-            isRenter
+            val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return false
+            val doc = firestore.collection("renters").document(uid).get().await()
+            doc.exists().also { Log.d(TAG, "¿Es arrendatario?: $it") }
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Error verificando rol de usuario: ${e.message}")
+            Log.e(TAG, "Error verificando rol: ${e.message}")
             false
         }
     }
@@ -394,24 +372,16 @@ class RoomDetailActivity : AppCompatActivity(), OnMapReadyCallback {
         googleMap = map
         room?.getLatLng()?.let { (lat, lng) ->
             val location = LatLng(lat, lng)
-            googleMap?.apply {
-                addMarker(
-                    MarkerOptions()
-                        .position(location)
-                        .title(room?.nombre)
-                )
+            googleMap?.run {
+                addMarker(MarkerOptions().position(location).title(room?.nombre))
                 moveCamera(CameraUpdateFactory.newLatLngZoom(location, 15f))
                 uiSettings.isZoomControlsEnabled = true
             }
-            Log.d(TAG, "🗺️ Mapa configurado en: $lat, $lng")
-        } ?: run {
-            Log.w(TAG, "⚠️ Ubicación no disponible para el cuarto")
+            Log.d(TAG, "Mapa configurado en: $lat, $lng")
         }
     }
 
-    private fun Int.dpToPx(): Int {
-        return (this * resources.displayMetrics.density).toInt()
-    }
+    private fun Int.dpToPx(): Int = (this * resources.displayMetrics.density).toInt()
 
     inner class ImagePagerAdapter(private val images: List<String>) :
         androidx.recyclerview.widget.RecyclerView.Adapter<ImagePagerAdapter.ImageViewHolder>() {
@@ -421,8 +391,7 @@ class RoomDetailActivity : AppCompatActivity(), OnMapReadyCallback {
         }
 
         override fun onCreateViewHolder(parent: android.view.ViewGroup, viewType: Int): ImageViewHolder {
-            val view = LayoutInflater.from(parent.context)
-                .inflate(R.layout.item_room_image, parent, false)
+            val view = LayoutInflater.from(parent.context).inflate(R.layout.item_room_image, parent, false)
             return ImageViewHolder(view)
         }
 

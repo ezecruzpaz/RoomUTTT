@@ -38,6 +38,8 @@ android {
     }
     buildFeatures {
         compose = true
+        viewBinding = true      // ← AGREGAR
+        dataBinding = true      // ← AGREGAR
     }
 
     packaging {
@@ -109,4 +111,9 @@ dependencies {
 
     // CardView para el perfil
     implementation("androidx.cardview:cardview:1.0.0")
+    //notificaciones push
+    implementation ("com.google.firebase:firebase-messaging-ktx:23.2.1")
+
+
+
 }

@@ -20,9 +20,11 @@ import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.firebase.auth.FirebaseAuth
 import cn.pedant.SweetAlert.SweetAlertDialog
+import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.firebase.firestore.FirebaseFirestore
 import com.roomu.app.R
 import com.roomu.app.ui.renter.viewmodel.RenterViewModel
+import com.roomu.app.ui.room.AllRoomsActivity
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -41,8 +43,11 @@ class RenterRegistrationActivity : AppCompatActivity() {
     private lateinit var ivBack: ImageView
     private lateinit var ivClose: ImageView
     private lateinit var btnGps: CardView
+    private lateinit var bottomNavigation: BottomNavigationView
 
     private var progressDialog: SweetAlertDialog? = null
+
+    private val mainViewModel: com.roomu.app.ui.home.viewmodel.MainViewModel by viewModels()
 
     // Cliente de ubicación
     private lateinit var fusedLocationClient: FusedLocationProviderClient
@@ -82,6 +87,7 @@ class RenterRegistrationActivity : AppCompatActivity() {
         setupListeners()
         prefillName()
         observeViewModel()
+        setupBottomNavigation() // AÑADIR ESTO
     }
 
     private fun initViews() {
@@ -92,6 +98,7 @@ class RenterRegistrationActivity : AppCompatActivity() {
         ivBack = findViewById(R.id.iv_back)
         ivClose = findViewById(R.id.iv_close)
         btnGps = findViewById(R.id.btn_gps)
+        bottomNavigation = findViewById(R.id.bottom_nav) // AÑADIR ESTO
     }
 
     private fun setupListeners() {
@@ -151,7 +158,63 @@ class RenterRegistrationActivity : AppCompatActivity() {
             viewModel.createRenterAccount(nombre, telefono, direccion)
         }
     }
+    private fun setupBottomNavigation() {
+        bottomNavigation.selectedItemId = -1
 
+        bottomNavigation.setOnItemSelectedListener { item ->
+            when (item.itemId) {
+                R.id.nav_home -> {
+                    startActivity(Intent(this, RenterDashboardActivity::class.java))
+                    finish()
+                    true
+                }
+
+                R.id.nav_rooms -> {
+                    lifecycleScope.launch {
+                        try {
+                            val uid = auth.currentUser?.uid
+                            if (uid == null) {
+                                Toast.makeText(this@RenterRegistrationActivity, "Usuario no autenticado", Toast.LENGTH_SHORT).show()
+                                return@launch
+                            }
+
+                            // Cargar cuartos desde MainViewModel
+                            mainViewModel.loadRooms()
+                            val allRooms = mainViewModel.allRooms.value ?: emptyList()
+
+                            // Filtrar cuartos del usuario
+                            val userRooms = allRooms.filter { it.userId == uid }
+
+                            if (userRooms.isNotEmpty()) {
+                                val intent = Intent(this@RenterRegistrationActivity, AllRoomsActivity::class.java).apply {
+                                    putExtra("allRooms", ArrayList(userRooms))
+                                    putExtra("isRenterView", true)
+                                    putExtra("fromRenterDashboard", true)
+                                }
+                                startActivity(intent)
+                            } else {
+                                Toast.makeText(this@RenterRegistrationActivity, "Aún no tienes cuartos publicados", Toast.LENGTH_SHORT).show()
+                            }
+                        } catch (e: Exception) {
+                            Log.e("RenterReg", "Error cargando cuartos: ${e.message}")
+                            Toast.makeText(this@RenterRegistrationActivity, "Error de conexión", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    true
+                }
+
+                R.id.nav_chat -> {
+                    val intent = Intent(this, com.roomu.app.ui.chat.ChatsListActivity::class.java).apply {
+                        putExtra("isRenter", true)
+                    }
+                    startActivity(intent)
+                    true
+                }
+
+                else -> false
+            }
+        }
+    }
     /**
      * Valida que el teléfono tenga 10 dígitos
      */

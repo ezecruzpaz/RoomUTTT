@@ -84,16 +84,67 @@ data class RoomData(
     val createdAt: String,
 
     @SerializedName("UpdatedAt")
-    val updatedAt: String
-) : Serializable { // Implementa Serializable
+    val updatedAt: String,
+
+    // ✅ Campos que se llenan después (nullable para evitar problemas con Gson)
+    var renterId: String? = null,
+    var renterName: String? = null
+
+) : Serializable {
+
+    init {
+        // ✅ Si renterId es null o vacío, llenarlo con userId
+        if (renterId.isNullOrEmpty()) {
+            renterId = userId
+        }
+        // ✅ Si renterName es null, usar string vacío
+        if (renterName == null) {
+            renterName = ""
+        }
+    }
+
+    companion object {
+        // ✅ Factory function para crear RoomData con renterId y renterName
+        fun fromJson(
+            id: String,
+            nombre: String,
+            precio: Double,
+            descripcion: String?,
+            capacidad: Int,
+            disponible: Boolean,
+            servicios: List<String>,
+            userId: String,
+            ubicacion: String,
+            imagenes: List<String>,
+            createdAt: String,
+            updatedAt: String
+        ): RoomData {
+            return RoomData(
+                id = id,
+                nombre = nombre,
+                precio = precio,
+                descripcion = descripcion,
+                capacidad = capacidad,
+                disponible = disponible,
+                servicios = servicios,
+                userId = userId,
+                ubicacion = ubicacion,
+                imagenes = imagenes,
+                createdAt = createdAt,
+                updatedAt = updatedAt,
+                renterId = userId, // ✅ Llenar aquí directamente
+                renterName = ""
+            )
+        }
+    }
 
     // 🔥 Función para obtener latitud y longitud
     fun getLatLng(): Pair<Double, Double>? {
         return try {
             val parts = ubicacion.split(",")
             if (parts.size == 2) {
-                val lat = parts[0].toDouble()
-                val lng = parts[1].toDouble()
+                val lat = parts[0].trim().toDouble()
+                val lng = parts[1].trim().toDouble()
                 Pair(lat, lng)
             } else null
         } catch (e: Exception) {

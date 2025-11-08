@@ -15,6 +15,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.roomu.app.R
 import com.roomu.app.domain.model.RoomData
+import com.roomu.app.ui.chat.ChatsListActivity
 import com.roomu.app.ui.home.MainActivity
 import com.roomu.app.ui.home.adapter.RoomAdapter
 import com.roomu.app.ui.profile.ProfileActivity
@@ -152,8 +153,14 @@ class AllRoomsActivity : AppCompatActivity() {
                 }
 
                 R.id.nav_chat -> {
-                    Toast.makeText(this, "💬 Chat próximamente", Toast.LENGTH_SHORT).show()
-                    false
+                    lifecycleScope.launch {
+                        val isRenter = checkIfUserIsRenter()
+                        val intent = Intent(this@AllRoomsActivity, ChatsListActivity::class.java).apply {
+                            putExtra("isRenter", isRenter)
+                        }
+                        startActivity(intent)
+                    }
+                    true
                 }
 
                 else -> false

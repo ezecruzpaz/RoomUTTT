@@ -388,10 +388,12 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
                 }
 
                 R.id.nav_chat -> {
-                    Toast.makeText(this, "💬 Chat próximamente", Toast.LENGTH_SHORT).show()
-                    false
+                    val intent = Intent(this, com.roomu.app.ui.chat.ChatsListActivity::class.java).apply {
+                        putExtra("isRenter", true) // Es renter
+                    }
+                    startActivity(intent)
+                    true
                 }
-
                 else -> false
             }
         }

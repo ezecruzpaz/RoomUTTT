@@ -8,15 +8,16 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
+
     <!-- Permisos para galería y cámara -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.CALL_PHONE" />
 
     <!-- Feature para cámara (opcional pero recomendado) -->
     <uses-feature android:name="android.hardware.camera" android:required="false" />
-
 
     <application
         android:name=".RoomUtttApplication"
@@ -64,29 +65,28 @@
             android:exported="false"
             android:theme="@style/Theme.RoomUTTT" />
 
-        <!-- Actividad  Creacion Cuarto -->
+        <!-- Actividad Creación Cuarto -->
         <activity
             android:name=".ui.room.CreateRoomActivity"
             android:exported="false" />
 
-        <!-- Actividad Terminos y condiciones -->
-
+        <!-- Términos y condiciones -->
         <activity
             android:name=".ui.terms.TermsActivity"
             android:exported="false"
             android:theme="@style/Theme.RoomUTTT" />
-        <!-- Pantalla cuenta Arrendatario -->
 
+        <!-- Registro Arrendatario -->
         <activity
             android:name=".ui.renter.RenterRegistrationActivity"
             android:exported="false" />
 
-        <!-- Añade esta línea para AllRoomsActivity -->
+        <!-- Todos los cuartos -->
         <activity
             android:name=".ui.room.AllRoomsActivity"
-            android:exported="false">
-        </activity>
+            android:exported="false" />
 
+        <!-- Dashboard Arrendatario -->
         <activity
             android:name=".ui.renter.RenterDashboardActivity"
             android:exported="false">
@@ -96,19 +96,47 @@
             </intent-filter>
         </activity>
 
-        <!-- Nueva Actividad de Detalles del Cuarto -->
+        <!-- Detalles del cuarto -->
         <activity
             android:name=".ui.room.RoomDetailActivity"
             android:exported="false"
             android:theme="@style/Theme.RoomUTTT" />
 
-        <!-- Nueva Actividad de expansion del mapa -->
+        <!-- Mapa en pantalla completa -->
         <activity
             android:name=".ui.room.FullscreenMapActivity"
             android:exported="false"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.RoomUTTT" />
 
+        <!-- ACTIVIDAD: CHAT -->
+        <activity
+            android:name=".ui.chat.ChatActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.room.RoomDetailActivity"
+            android:theme="@style/Theme.RoomUTTT"
+            android:windowSoftInputMode="adjustResize" />
+
+        <!-- ✅ ACTIVIDAD: CHATS DEL RENTER -->
+        <activity
+            android:name=".ui.renter.RenterChatsActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.renter.RenterDashboardActivity"
+            android:theme="@style/Theme.RoomUTTT" />
+
+        <!-- SERVICIO: FCM (Notificaciones) -->
+        <service
+            android:name=".utils.MyFirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+
+        <activity
+            android:name=".ui.chat.ChatsListActivity"
+            android:exported="false" />
 
         <!-- API Key de Google Maps -->
         <meta-data

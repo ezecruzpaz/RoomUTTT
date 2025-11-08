@@ -18,8 +18,8 @@ import com.roomu.app.data.api.RoomApiService
 import com.roomu.app.domain.model.RoomData
 import com.roomu.app.ui.profile.ProfileActivity
 import com.roomu.app.ui.renter.adapter.RenterRoomAdapter
-import com.roomu.app.ui.room.CreateRoomActivity  // ✅ AGREGADO
-import com.roomu.app.ui.room.AllRoomsActivity     // ✅ AGREGADO
+import com.roomu.app.ui.room.CreateRoomActivity
+import com.roomu.app.ui.room.AllRoomsActivity
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -119,7 +119,7 @@ class RenterDashboardActivity : AppCompatActivity() {
         }
 
         btnAddRoom.setOnClickListener {
-            startActivity(Intent(this, CreateRoomActivity::class.java))  // ✅ CORREGIDO
+            startActivity(Intent(this, CreateRoomActivity::class.java))
         }
 
         btnFilters.setOnClickListener {
@@ -146,12 +146,13 @@ class RenterDashboardActivity : AppCompatActivity() {
             applyFilter()
         }
 
+        // ✅ BOTTOM NAVIGATION CON CHATS
         bottomNavigation.setOnItemSelectedListener { item ->
             when (item.itemId) {
                 R.id.nav_home -> true
 
                 R.id.nav_rooms -> {
-                    val intent = Intent(this, AllRoomsActivity::class.java)  // ✅ CORREGIDO
+                    val intent = Intent(this, AllRoomsActivity::class.java)
                     intent.putExtra("allRooms", ArrayList(allRooms))
                     intent.putExtra("isRenterView", true)
                     intent.putExtra("fromRenterDashboard", true)
@@ -160,7 +161,8 @@ class RenterDashboardActivity : AppCompatActivity() {
                 }
 
                 R.id.nav_chat -> {
-                    Toast.makeText(this, "💬 Chat próximamente", Toast.LENGTH_SHORT).show()
+                    // ✅ ABRIR PANTALLA DE CHATS
+                    startActivity(Intent(this, RenterChatsActivity::class.java))
                     false
                 }
 
