@@ -79,23 +79,57 @@ class ChatAdapter(
      * ✅ Filtrar palabras obscenas
      */
     private fun filterObsceneWords(text: String): String {
-        // Lista de palabras prohibidas (agregar las que quieras)
         val obsceneWords = listOf(
-            "mierda", "puta", "culo", "bastardo", "idiota",
-            "pendejo", "chingada", "cabrón", "jodido",
-            "shit", "fuck", "ass", "damn", "hell",
-            "bitch", "bastard", "crap"
+            // Español - México / Latinoamérica
+            "mierda", "puta", "puto", "putita", "putazo", "putear",
+            "pendejo", "pendeja", "pendejada", "cabron", "cabrón", "cabrona",
+            "chingar", "chingada", "chingado", "chingón", "chingona",
+            "chingones", "chingaderas", "chingadera", "jodido", "joder",
+            "pinche", "pinches", "chingatumadre", "madres", "hijueputa",
+            "hijoputa", "hijo de puta", "hijadelachingada", "mamón", "mamona",
+            "mamadas", "mamada", "verga", "vergazo", "verguita", "vergazos",
+            "culero", "culera", "culo", "culito", "chingón", "chingaos",
+            "chingado", "coño", "carajo", "hostia", "capullo", "gilipollas",
+            "imbécil", "idiota", "tarado", "baboso", "babosa", "malparido",
+            "pelotudo", "boludo", "cornudo", "zorra", "zorrilla", "cerdo",
+            "perra", "marica", "maricón", "putón", "putona", "putita",
+            "prostituta", "ratero", "ladron", "ladrona", "pajero", "pajera",
+            "maldito", "maldita", "asqueroso", "asquerosa", "estúpido",
+            "estupida", "tonto", "tonta", "puerco", "puerca", "feo",
+            "güey", "wey","we", "guey", "pinchi", "pinshi", "chingoncito",
+            "chingaderas", "chingaderita", "chingoncísima", "culazo",
+            "culito", "culazo", "pinchazo", "chingones", "chingaderas",
+            "mierdero", "mierdita", "mamoncito", "putarraco",
+
+            // Español - España
+            "cojones", "cojonudo", "hostia", "jilipollas", "mamarracho",
+            "pringao", "capullo", "subnormal", "petardo", "cagón", "cagona",
+            "soplapollas", "caraculo", "cabronazo", "gilipuertas", "mierdoso",
+
+            // Inglés - general
+            "fuck", "fucking", "motherfucker", "shit", "bullshit", "asshole",
+            "dick", "dickhead", "cock", "bastard", "bitch", "slut", "whore",
+            "damn", "crap", "piss", "pissed", "hell", "cunt", "twat", "prick",
+            "jerk", "idiot", "moron", "stupid", "dumbass", "retard",
+            "fag", "faggot", "gayass", "suck", "sucker", "pussy", "balls",
+            "nuts", "bloody", "arse", "arsehole", "bollocks", "wanker",
+            "tosser", "bugger", "douche", "douchebag", "dipshit",
+            "motherfucking", "goddamn", "sonofabitch", "jackass", "shithead",
+            "bitchass", "slutty", "whorish", "bastards", "asses", "retarded",
+            "fuckface", "cum", "cumshot", "semen", "boobs", "tits", "boobies",
+            "nipple", "butthole", "ballsack", "nutsack", "spank", "jerkoff",
+            "handjob", "blowjob", "porn", "porno", "pornographic", "screw",
+            "screwed", "screwing", "dammit", "goddammit", "fuckhead"
         )
 
-        var filtered = text
-
+        var filteredText = text
         obsceneWords.forEach { word ->
-            val regex = Regex("\\b$word\\b", RegexOption.IGNORE_CASE)
-            filtered = filtered.replace(regex, "*".repeat(word.length))
+            val regex = Regex("\\b${Regex.escape(word)}\\b", RegexOption.IGNORE_CASE)
+            filteredText = filteredText.replace(regex) { "*".repeat(it.value.length) }
         }
-
-        return filtered
+        return filteredText
     }
+
 
     /**
      * ✅ Formatear hora del mensaje

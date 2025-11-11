@@ -102,13 +102,92 @@ class ChatActivity : AppCompatActivity() {
         // Cargar avatar del usuario desde Firestore
         loadUserAvatar()
 
-        // Configurar botón de llamada
-        setupCallButton()
+        // ✅ VERIFICAR ROL antes de mostrar botón de llamada
+        checkUserRoleAndSetupCallButton()
+    }
+    private fun checkUserRoleAndSetupCallButton() {
+        firestore.collection("renters").document(currentUserId).get()
+            .addOnSuccessListener { renterDoc ->
+                if (renterDoc.exists()) {
+                    // ✅ Es RENTER - MOSTRAR botón de llamada
+                    Log.d("ChatActivity", "✅ Usuario es RENTER - Habilitando llamadas")
+                    binding.btnCall.visibility = android.view.View.VISIBLE
+                    setupCallButton()
+                } else {
+                    // NO es renter, verificar si es usuario normal
+                    checkIfNormalUser()
+                }
+            }
+            .addOnFailureListener {
+                // Error, intentar verificar como usuario normal
+                checkIfNormalUser()
+            }
+    }
+    private fun checkIfNormalUser() {
+        firestore.collection("users").document(currentUserId).get()
+            .addOnSuccessListener { userDoc ->
+                if (userDoc.exists()) {
+                    val role = userDoc.getString("role") ?: "user"
 
-        // TODO: Actualizar estado online/offline
-        // Puedes implementar presencia con Realtime Database
+                    if (role == "renter") {
+                        // Es RENTER - MOSTRAR botón
+                        Log.d("ChatActivity", "✅ Usuario es RENTER (desde users) - Habilitando llamadas")
+                        binding.btnCall.visibility = android.view.View.VISIBLE
+                        setupCallButton()
+                    } else {
+                        // Es usuario normal - OCULTAR botón
+                        Log.d("ChatActivity", "⛔ Usuario es NORMAL - Deshabilitando llamadas")
+                        binding.btnCall.visibility = android.view.View.GONE
+                    }
+                } else {
+                    // Usuario no encontrado - OCULTAR por seguridad
+                    Log.w("ChatActivity", "⚠️ Usuario no encontrado - Deshabilitando llamadas")
+                    binding.btnCall.visibility = android.view.View.GONE
+                }
+            }
+            .addOnFailureListener { e ->
+                Log.e("ChatActivity", "❌ Error verificando rol: ${e.message}")
+                // OCULTAR por defecto si hay error
+                binding.btnCall.visibility = android.view.View.GONE
+            }
     }
 
+    /**
+     * ✅ setupCallButton() - SIN CAMBIOS
+     */
+    private fun setupCallButton() {
+        binding.btnCall.setOnClickListener {
+            Log.d("ChatActivity", "🔍 Buscando teléfono de usuario: $otherUserId")
+
+            // Buscar primero en renters (arrendatarios)
+            firestore.document("renters/$otherUserId").get()
+                .addOnSuccessListener { doc ->
+                    if (doc.exists()) {
+                        Log.d("ChatActivity", "📄 Usuario encontrado en renters")
+                        Log.d("ChatActivity", "📄 Documento completo: ${doc.data}")
+
+                        val telefono = doc.getString("telefono")
+                        Log.d("ChatActivity", "📞 Campo 'telefono' extraído: '$telefono'")
+
+                        if (!telefono.isNullOrEmpty()) {
+                            Log.d("ChatActivity", "✅ Teléfono válido encontrado en renters: $telefono")
+                            pendingPhoneNumber = telefono
+                            checkAndRequestCallPermission()
+                        } else {
+                            Log.w("ChatActivity", "⚠️ Renter sin teléfono, buscando en users...")
+                            searchPhoneInUsers()
+                        }
+                    } else {
+                        Log.d("ChatActivity", "⚠️ Usuario no encontrado en renters, buscando en users...")
+                        searchPhoneInUsers()
+                    }
+                }
+                .addOnFailureListener { e ->
+                    Log.e("ChatActivity", "❌ Error buscando en renters: ${e.message}")
+                    searchPhoneInUsers()
+                }
+        }
+    }
     private fun setupRecyclerView() {
         adapter = ChatAdapter(
             messages,
@@ -144,18 +223,160 @@ class ChatActivity : AppCompatActivity() {
             finish()
         }
     }
-
     private fun setupSendButton() {
         binding.btnSend.setOnClickListener {
             val text = binding.etMessage.text.toString().trim()
             if (text.isNotEmpty()) {
-                sendMessage(text)
-                binding.etMessage.text.clear()
+                // ✅ VALIDAR si tiene palabras obscenas
+                if (containsObsceneWords(text)) {
+                    showObsceneWordsDialog(text)
+                } else {
+                    sendMessage(text)
+                    binding.etMessage.text.clear()
+                }
             }
         }
     }
+    private fun containsObsceneWords(text: String): Boolean {
+        val obsceneWords = listOf(
+            // Español - México / Latinoamérica
+            "mierda", "puta", "puto", "putita", "putazo", "putear",
+            "pendejo", "pendeja", "pendejada", "cabron", "cabrón", "cabrona",
+            "chingar", "chingada", "chingado", "chingón", "chingona",
+            "chingones", "chingaderas", "chingadera", "jodido", "joder",
+            "pinche", "pinches", "chingatumadre", "madres", "hijueputa",
+            "hijoputa", "hijo de puta", "hijadelachingada", "mamón", "mamona",
+            "mamadas", "mamada", "verga", "vergazo", "verguita", "vergazos",
+            "culero", "culera", "culo", "culito", "chingón", "chingaos",
+            "chingado", "coño", "carajo", "hostia", "capullo", "gilipollas",
+            "imbécil", "idiota", "tarado", "baboso", "babosa", "malparido",
+            "pelotudo", "boludo", "cornudo", "zorra", "zorrilla", "cerdo",
+            "perra", "marica", "maricón", "putón", "putona", "putita",
+            "prostituta", "ratero", "ladron", "ladrona", "pajero", "pajera",
+            "maldito", "maldita", "asqueroso", "asquerosa", "estúpido",
+            "estupida", "tonto", "tonta", "puerco", "puerca", "feo",
+            "güey", "wey","we", "guey", "pinchi", "pinshi", "chingoncito",
+            "chingaderas", "chingaderita", "chingoncísima", "culazo",
+            "culito", "culazo", "pinchazo", "chingones", "chingaderas",
+            "mierdero", "mierdita", "mamoncito", "putarraco",
 
-    // ✅ REEMPLAZAR: sendMessage() - ACTUALIZADA
+            // Español - España
+            "cojones", "cojonudo", "hostia", "jilipollas", "mamarracho",
+            "pringao", "capullo", "subnormal", "petardo", "cagón", "cagona",
+            "soplapollas", "caraculo", "cabronazo", "gilipuertas", "mierdoso",
+
+            // Inglés - general
+            "fuck", "fucking", "motherfucker", "shit", "bullshit", "asshole",
+            "dick", "dickhead", "cock", "bastard", "bitch", "slut", "whore",
+            "damn", "crap", "piss", "pissed", "hell", "cunt", "twat", "prick",
+            "jerk", "idiot", "moron", "stupid", "dumbass", "retard",
+            "fag", "faggot", "gayass", "suck", "sucker", "pussy", "balls",
+            "nuts", "bloody", "arse", "arsehole", "bollocks", "wanker",
+            "tosser", "bugger", "douche", "douchebag", "dipshit",
+            "motherfucking", "goddamn", "sonofabitch", "jackass", "shithead",
+            "bitchass", "slutty", "whorish", "bastards", "asses", "retarded",
+            "fuckface", "cum", "cumshot", "semen", "boobs", "tits", "boobies",
+            "nipple", "butthole", "ballsack", "nutsack", "spank", "jerkoff",
+            "handjob", "blowjob", "porn", "porno", "pornographic", "screw",
+            "screwed", "screwing", "dammit", "goddammit", "fuckhead"
+        )
+
+        val lowerText = text.lowercase()
+        return obsceneWords.any { word ->
+            Regex("\\b$word\\b", RegexOption.IGNORE_CASE).containsMatchIn(lowerText)
+        }
+    }
+    private fun showObsceneWordsDialog(messageText: String) {
+        cn.pedant.SweetAlert.SweetAlertDialog(this, cn.pedant.SweetAlert.SweetAlertDialog.WARNING_TYPE)
+            .setTitleText("⚠️ Lenguaje inapropiado")
+            .setContentText("Tu mensaje contiene palabras inapropiadas.\n\n¿Deseas editarlo?")
+            .setConfirmText("Editar")
+            .setCancelText("Cancelar")
+            .setConfirmClickListener { dialog ->
+                dialog.dismissWithAnimation()
+                binding.etMessage.setText(messageText)
+                binding.etMessage.setSelection(messageText.length)
+                binding.etMessage.requestFocus()
+            }
+            .setCancelClickListener { dialog ->
+                dialog.dismissWithAnimation()
+                binding.etMessage.setText("")
+            }
+            .show()
+    }
+    private fun showDetectedObsceneWords(messageText: String) {
+        val obsceneWords = listOf(
+            // Español - México / Latinoamérica
+            "mierda", "puta", "puto", "putita", "putazo", "putear",
+            "pendejo", "pendeja", "pendejada", "cabron", "cabrón", "cabrona",
+            "chingar", "chingada", "chingado", "chingón", "chingona",
+            "chingones", "chingaderas", "chingadera", "jodido", "joder",
+            "pinche", "pinches", "chingatumadre", "madres", "hijueputa",
+            "hijoputa", "hijo de puta", "hijadelachingada", "mamón", "mamona",
+            "mamadas", "mamada", "verga", "vergazo", "verguita", "vergazos",
+            "culero", "culera", "culo", "culito", "chingón", "chingaos",
+            "chingado", "coño", "carajo", "hostia", "capullo", "gilipollas",
+            "imbécil", "idiota", "tarado", "baboso", "babosa", "malparido",
+            "pelotudo", "boludo", "cornudo", "zorra", "zorrilla", "cerdo",
+            "perra", "marica", "maricón", "putón", "putona", "putita",
+            "prostituta", "ratero", "ladron", "ladrona", "pajero", "pajera",
+            "maldito", "maldita", "asqueroso", "asquerosa", "estúpido",
+            "estupida", "tonto", "tonta", "puerco", "puerca", "feo",
+            "güey", "wey","we", "guey", "pinchi", "pinshi", "chingoncito",
+            "chingaderas", "chingaderita", "chingoncísima", "culazo",
+            "culito", "culazo", "pinchazo", "chingones", "chingaderas",
+            "mierdero", "mierdita", "mamoncito", "putarraco",
+
+            // Español - España
+            "cojones", "cojonudo", "hostia", "jilipollas", "mamarracho",
+            "pringao", "capullo", "subnormal", "petardo", "cagón", "cagona",
+            "soplapollas", "caraculo", "cabronazo", "gilipuertas", "mierdoso",
+
+            // Inglés - general
+            "fuck", "fucking", "motherfucker", "shit", "bullshit", "asshole",
+            "dick", "dickhead", "cock", "bastard", "bitch", "slut", "whore",
+            "damn", "crap", "piss", "pissed", "hell", "cunt", "twat", "prick",
+            "jerk", "idiot", "moron", "stupid", "dumbass", "retard",
+            "fag", "faggot", "gayass", "suck", "sucker", "pussy", "balls",
+            "nuts", "bloody", "arse", "arsehole", "bollocks", "wanker",
+            "tosser", "bugger", "douche", "douchebag", "dipshit",
+            "motherfucking", "goddamn", "sonofabitch", "jackass", "shithead",
+            "bitchass", "slutty", "whorish", "bastards", "asses", "retarded",
+            "fuckface", "cum", "cumshot", "semen", "boobs", "tits", "boobies",
+            "nipple", "butthole", "ballsack", "nutsack", "spank", "jerkoff",
+            "handjob", "blowjob", "porn", "porno", "pornographic", "screw",
+            "screwed", "screwing", "dammit", "goddammit", "fuckhead"
+
+        )
+
+        val detectedWords = obsceneWords.filter { word ->
+            Regex("\\b$word\\b", RegexOption.IGNORE_CASE).containsMatchIn(messageText.lowercase())
+        }
+
+        val wordsList = if (detectedWords.isNotEmpty()) {
+            detectedWords.joinToString(", ")
+        } else {
+            "Ninguna detectada"
+        }
+
+        cn.pedant.SweetAlert.SweetAlertDialog(this, cn.pedant.SweetAlert.SweetAlertDialog.ERROR_TYPE)
+            .setTitleText("❌ Palabras detectadas")
+            .setContentText("Palabras inapropiadas encontradas:\n\n$wordsList")
+            .setConfirmText("Editar")
+            .setCancelText("Cancelar")
+            .setConfirmClickListener { dialog ->
+                dialog.dismissWithAnimation()
+                binding.etMessage.setText(messageText)
+                binding.etMessage.setSelection(messageText.length)
+                binding.etMessage.requestFocus()
+            }
+            .setCancelClickListener { dialog ->
+                dialog.dismissWithAnimation()
+            }
+            .show()
+    }
+
+    // ✅ MANTENER: sendMessage() - SIN CAMBIOS
     private fun sendMessage(text: String) {
         val messageData = hashMapOf(
             "text" to text,
@@ -169,7 +390,7 @@ class ChatActivity : AppCompatActivity() {
                 Log.d("CHAT", "✅ Mensaje enviado: $text")
                 updateChatLastMessage(text)
 
-                // ✅ NUEVO: Marcar como NO LEÍDO para el otro usuario
+                // ✅ Marcar como NO LEÍDO para el otro usuario
                 lifecycleScope.launch {
                     ChatNotificationManager.markChatAsUnread(chatId, otherUserId)
                     Log.d("CHAT", "✅ Marcado como NO LEÍDO para: $otherUserId")
@@ -182,7 +403,6 @@ class ChatActivity : AppCompatActivity() {
             }
     }
 
-    // ✅ REEMPLAZAR: updateChatLastMessage() - SIMPLIFICADA
     private fun updateChatLastMessage(text: String) {
         val chatRef = firestore.document("chats/$chatId")
         val updates = mapOf(
@@ -191,18 +411,12 @@ class ChatActivity : AppCompatActivity() {
         )
         chatRef.set(updates, SetOptions.merge())
     }
-
-    // ✅ NUEVO: Marcar como LEÍDO cuando entra al chat
     private fun markAsRead() {
         lifecycleScope.launch {
             ChatNotificationManager.markChatAsRead(chatId, currentUserId)
             Log.d("CHAT", "✅ Chat marcado como LEÍDO")
         }
     }
-
-
-
-    // ✅ REEMPLAZAR: listenToMessages() - CON MANEJO DE NOTIFICACIONES
     private fun listenToMessages() {
         messagesListener?.remove()
 
@@ -247,12 +461,8 @@ class ChatActivity : AppCompatActivity() {
                     // ✅ Marcar como LEÍDO cuando recibe mensajes
                     markAsRead()
                 }
-            }
-
-
+                 }
 }
-
-
 
     private fun createChatIfNotExists() {
         val chatRef = firestore.document("chats/$chatId")
@@ -278,11 +488,9 @@ class ChatActivity : AppCompatActivity() {
             }
         }
     }
-
     private fun getChatId(uid1: String, uid2: String): String {
         return if (uid1 < uid2) "${uid1}_${uid2}" else "${uid2}_${uid1}"
     }
-
     private fun sendFCMNotification(message: String) {
         // Buscar primero en renters
         firestore.document("renters/$otherUserId").get()
@@ -305,7 +513,6 @@ class ChatActivity : AppCompatActivity() {
                 searchFCMTokenInUsers()
             }
     }
-
     private fun searchFCMTokenInUsers() {
         firestore.document("users/$otherUserId").get()
             .addOnSuccessListener { doc ->
@@ -321,9 +528,7 @@ class ChatActivity : AppCompatActivity() {
                 Log.e("FCM", "❌ Error obteniendo token de users: ${it.message}")
             }
     }
-
     private fun loadUserAvatar() {
-        // La foto de perfil SIEMPRE está en users
         firestore.document("users/$otherUserId").get()
             .addOnSuccessListener { userDoc ->
                 val photoUrl = userDoc.getString("photoUrl")
@@ -334,7 +539,6 @@ class ChatActivity : AppCompatActivity() {
                 binding.ivContactAvatar.setImageResource(R.drawable.ic_profile_placeholder)
             }
     }
-
     private fun loadAvatarImage(photoUrl: String?) {
         if (!photoUrl.isNullOrEmpty()) {
             Glide.with(this)
@@ -350,41 +554,6 @@ class ChatActivity : AppCompatActivity() {
             binding.ivContactAvatar.setImageResource(R.drawable.ic_profile_placeholder)
         }
     }
-
-    private fun setupCallButton() {
-        binding.btnCall.setOnClickListener {
-            Log.d("ChatActivity", "🔍 Buscando teléfono de usuario: $otherUserId")
-
-            // Buscar primero en renters (arrendatarios)
-            firestore.document("renters/$otherUserId").get()
-                .addOnSuccessListener { doc ->
-                    if (doc.exists()) {
-                        Log.d("ChatActivity", "📄 Usuario encontrado en renters")
-                        Log.d("ChatActivity", "📄 Documento completo: ${doc.data}")
-
-                        val telefono = doc.getString("telefono")
-                        Log.d("ChatActivity", "📞 Campo 'telefono' extraído: '$telefono'")
-
-                        if (!telefono.isNullOrEmpty()) {
-                            Log.d("ChatActivity", "✅ Teléfono válido encontrado en renters: $telefono")
-                            pendingPhoneNumber = telefono
-                            checkAndRequestCallPermission()
-                        } else {
-                            Log.w("ChatActivity", "⚠️ Renter sin teléfono, buscando en users...")
-                            searchPhoneInUsers()
-                        }
-                    } else {
-                        Log.d("ChatActivity", "⚠️ Usuario no encontrado en renters, buscando en users...")
-                        searchPhoneInUsers()
-                    }
-                }
-                .addOnFailureListener { e ->
-                    Log.e("ChatActivity", "❌ Error buscando en renters: ${e.message}")
-                    searchPhoneInUsers()
-                }
-        }
-    }
-
     private fun searchPhoneInUsers() {
         firestore.document("users/$otherUserId").get()
             .addOnSuccessListener { doc ->
@@ -409,7 +578,6 @@ class ChatActivity : AppCompatActivity() {
                 e.printStackTrace()
             }
     }
-
     private fun checkAndRequestCallPermission() {
         when {
             ContextCompat.checkSelfPermission(
@@ -438,7 +606,6 @@ class ChatActivity : AppCompatActivity() {
             }
         }
     }
-
     private fun showPermissionExplanationDialog() {
         AlertDialog.Builder(this)
             .setTitle("Permiso de llamada")
@@ -457,7 +624,6 @@ class ChatActivity : AppCompatActivity() {
             .setCancelable(false)
             .show()
     }
-
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<out String>,
@@ -507,7 +673,6 @@ class ChatActivity : AppCompatActivity() {
             Toast.makeText(this, "Error al iniciar llamada", Toast.LENGTH_SHORT).show()
         }
     }
-
     private fun openDialer(phoneNumber: String) {
         try {
             val intent = Intent(Intent.ACTION_DIAL).apply {
@@ -520,13 +685,11 @@ class ChatActivity : AppCompatActivity() {
             Log.e("ChatActivity", "❌ Error abriendo marcador: ${e.message}")
         }
     }
-
     override fun onDestroy() {
         super.onDestroy()
         messagesListener?.remove()
         Log.d("CHAT", "🛑 ChatActivity destruida, listener cancelado")
     }
-    // ✅ NUEVO: En onResume() también marcar como leído
     override fun onResume() {
         super.onResume()
         lifecycleScope.launch {
