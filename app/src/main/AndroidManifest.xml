@@ -148,6 +148,12 @@
             </intent-filter>
         </service>
 
+        <activity
+            android:name="com.roomu.app.ui.notifications.NotificationsActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.home.MainActivity"
+            android:theme="@style/Theme.RoomUTTT" />
+
         <!-- API Key de Google Maps -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"

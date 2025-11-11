@@ -37,6 +37,8 @@ class ChatActivity : AppCompatActivity() {
     private lateinit var otherUserName: String
     private var predefinedMessage: String? = null
     private var pendingPhoneNumber: String? = null
+    private var isFirstLoad = true
+
 
     private var messagesListener: ListenerRegistration? = null
 
@@ -105,7 +107,6 @@ class ChatActivity : AppCompatActivity() {
         // ✅ VERIFICAR ROL del OTRO usuario (otherUserId) en el chat
         checkOtherUserRoleAndSetupCallButton()
     }
-
     private fun checkOtherUserRoleAndSetupCallButton() {
         // ✅ Buscar en renters primero
         firestore.collection("renters").document(otherUserId).get()
@@ -211,7 +212,6 @@ class ChatActivity : AppCompatActivity() {
             }
         }
     }
-
     private fun deleteMessage(message: Message) {
         firestore.collection("chats/$chatId/messages")
             .document(message.messageId)
@@ -225,7 +225,6 @@ class ChatActivity : AppCompatActivity() {
                 Toast.makeText(this, "Error al eliminar", Toast.LENGTH_SHORT).show()
             }
     }
-
     private fun setupBackButton() {
         binding.btnBack.setOnClickListener {
             finish()
@@ -312,79 +311,6 @@ class ChatActivity : AppCompatActivity() {
             }
             .show()
     }
-    private fun showDetectedObsceneWords(messageText: String) {
-        val obsceneWords = listOf(
-            // Español - México / Latinoamérica
-            "mierda", "puta", "puto", "putita", "putazo", "putear",
-            "pendejo", "pendeja", "pendejada", "cabron", "cabrón", "cabrona",
-            "chingar", "chingada", "chingado", "chingón", "chingona",
-            "chingones", "chingaderas", "chingadera", "jodido", "joder",
-            "pinche", "pinches", "chingatumadre", "madres", "hijueputa",
-            "hijoputa", "hijo de puta", "hijadelachingada", "mamón", "mamona",
-            "mamadas", "mamada", "verga", "vergazo", "verguita", "vergazos",
-            "culero", "culera", "culo", "culito", "chingón", "chingaos",
-            "chingado", "coño", "carajo", "hostia", "capullo", "gilipollas",
-            "imbécil", "idiota", "tarado", "baboso", "babosa", "malparido",
-            "pelotudo", "boludo", "cornudo", "zorra", "zorrilla", "cerdo",
-            "perra", "marica", "maricón", "putón", "putona", "putita",
-            "prostituta", "ratero", "ladron", "ladrona", "pajero", "pajera",
-            "maldito", "maldita", "asqueroso", "asquerosa", "estúpido",
-            "estupida", "tonto", "tonta", "puerco", "puerca", "feo",
-            "güey", "wey","we", "guey", "pinchi", "pinshi", "chingoncito",
-            "chingaderas", "chingaderita", "chingoncísima", "culazo",
-            "culito", "culazo", "pinchazo", "chingones", "chingaderas",
-            "mierdero", "mierdita", "mamoncito", "putarraco",
-
-            // Español - España
-            "cojones", "cojonudo", "hostia", "jilipollas", "mamarracho",
-            "pringao", "capullo", "subnormal", "petardo", "cagón", "cagona",
-            "soplapollas", "caraculo", "cabronazo", "gilipuertas", "mierdoso",
-
-            // Inglés - general
-            "fuck", "fucking", "motherfucker", "shit", "bullshit", "asshole",
-            "dick", "dickhead", "cock", "bastard", "bitch", "slut", "whore",
-            "damn", "crap", "piss", "pissed", "hell", "cunt", "twat", "prick",
-            "jerk", "idiot", "moron", "stupid", "dumbass", "retard",
-            "fag", "faggot", "gayass", "suck", "sucker", "pussy", "balls",
-            "nuts", "bloody", "arse", "arsehole", "bollocks", "wanker",
-            "tosser", "bugger", "douche", "douchebag", "dipshit",
-            "motherfucking", "goddamn", "sonofabitch", "jackass", "shithead",
-            "bitchass", "slutty", "whorish", "bastards", "asses", "retarded",
-            "fuckface", "cum", "cumshot", "semen", "boobs", "tits", "boobies",
-            "nipple", "butthole", "ballsack", "nutsack", "spank", "jerkoff",
-            "handjob", "blowjob", "porn", "porno", "pornographic", "screw",
-            "screwed", "screwing", "dammit", "goddammit", "fuckhead"
-
-        )
-
-        val detectedWords = obsceneWords.filter { word ->
-            Regex("\\b$word\\b", RegexOption.IGNORE_CASE).containsMatchIn(messageText.lowercase())
-        }
-
-        val wordsList = if (detectedWords.isNotEmpty()) {
-            detectedWords.joinToString(", ")
-        } else {
-            "Ninguna detectada"
-        }
-
-        cn.pedant.SweetAlert.SweetAlertDialog(this, cn.pedant.SweetAlert.SweetAlertDialog.ERROR_TYPE)
-            .setTitleText("❌ Palabras detectadas")
-            .setContentText("Palabras inapropiadas encontradas:\n\n$wordsList")
-            .setConfirmText("Editar")
-            .setCancelText("Cancelar")
-            .setConfirmClickListener { dialog ->
-                dialog.dismissWithAnimation()
-                binding.etMessage.setText(messageText)
-                binding.etMessage.setSelection(messageText.length)
-                binding.etMessage.requestFocus()
-            }
-            .setCancelClickListener { dialog ->
-                dialog.dismissWithAnimation()
-            }
-            .show()
-    }
-
-    // ✅ MANTENER: sendMessage() - SIN CAMBIOS
     private fun sendMessage(text: String) {
         val messageData = hashMapOf(
             "text" to text,
@@ -410,7 +336,6 @@ class ChatActivity : AppCompatActivity() {
                 Log.e("CHAT", "❌ Error enviando mensaje: ${e.message}")
             }
     }
-
     private fun updateChatLastMessage(text: String) {
         val chatRef = firestore.document("chats/$chatId")
         val updates = mapOf(
@@ -444,14 +369,18 @@ class ChatActivity : AppCompatActivity() {
                         msg?.let {
                             newMessages.add(it.copy(messageId = doc.id))
 
-                            // ✅ Mostrar notificación si es de otro usuario y es nuevo
-                            if (msg.senderId != currentUserId && !messages.any { it.messageId == doc.id }) {
+                            // ✅ SOLO mostrar notificación si:
+                            // 1. NO es la primera carga (isFirstLoad = false)
+                            // 2. Es de otro usuario (msg.senderId != currentUserId)
+                            // 3. Es un mensaje nuevo que no tenemos en la lista actual
+                            if (!isFirstLoad && msg.senderId != currentUserId && !messages.any { it.messageId == doc.id }) {
                                 ChatNotificationManager.showMessageNotification(
                                     this@ChatActivity,
                                     chatId,
                                     otherUserName,
                                     msg.text,
-                                    otherUserId
+                                    otherUserId,
+                                    doc.id
                                 )
                             }
                         }
@@ -466,11 +395,18 @@ class ChatActivity : AppCompatActivity() {
                         binding.rvMessages.scrollToPosition(messages.size - 1)
                     }
 
-                    // ✅ Marcar como LEÍDO cuando recibe mensajes
+                    // ✅ Después de la primera carga, marcar como false
+                    if (isFirstLoad) {
+                        isFirstLoad = false
+                        Log.d("CHAT", "✅ Primera carga completada, notificaciones habilitadas para nuevos mensajes")
+                    }
+
+                    // Marcar como LEÍDO
                     markAsRead()
                 }
-                 }
-}
+            }
+    }
+
     private fun createChatIfNotExists() {
         val chatRef = firestore.document("chats/$chatId")
         chatRef.get().addOnSuccessListener { doc ->
@@ -695,11 +631,14 @@ class ChatActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         messagesListener?.remove()
+        ChatNotificationManager.clearNotificationsForChat(this, chatId)
         Log.d("CHAT", "🛑 ChatActivity destruida, listener cancelado")
     }
     override fun onResume() {
         super.onResume()
         lifecycleScope.launch {
+            // Limpiar notificaciones de este chat
+            ChatNotificationManager.clearNotificationsForChat(this@ChatActivity, chatId)
             markAsRead()
         }
     }

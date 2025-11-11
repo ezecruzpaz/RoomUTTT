@@ -206,8 +206,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             startActivity(Intent(this, ProfileActivity::class.java))
         }
 
+        // ✅ ACTUALIZADO: Abre NotificationsActivity en lugar de ChatsListActivity
         ivNotifications.setOnClickListener {
-            val intent = Intent(this, ChatsListActivity::class.java)
+            val intent = Intent(this, com.roomu.app.ui.notifications.NotificationsActivity::class.java)
             startActivity(intent)
         }
 

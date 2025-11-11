@@ -9,13 +9,15 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.google.firebase.firestore.FirebaseFirestore
 import com.roomu.app.R
-import com.roomu.app.ui.home.MainActivity
 import kotlinx.coroutines.tasks.await
 
 object ChatNotificationManager {
     private const val CHANNEL_ID = "chat_notifications"
     private const val CHANNEL_NAME = "Notificaciones de Chat"
     private const val TAG = "ChatNotifications"
+
+    // ✅ NUEVO: Set para rastrear notificaciones ya mostradas
+    private val shownNotifications = mutableSetOf<String>()
 
     /**
      * Crear canal de notificaciones (solo una vez)
@@ -35,15 +37,28 @@ object ChatNotificationManager {
     }
 
     /**
-     * Mostrar notificación cuando llega un nuevo mensaje
+     * ✅ MEJORADA: Mostrar notificación sin duplicados
      */
     fun showMessageNotification(
         context: Context,
         chatId: String,
         senderName: String,
         messageText: String,
-        otherUserId: String
+        otherUserId: String,
+        messageId: String = "" // ✅ NUEVO: ID único del mensaje
     ) {
+        // ✅ NUEVO: Crear clave única para evitar duplicados
+        val notificationKey = "$chatId-$messageId"
+
+        // ✅ Si ya se mostró esta notificación, no mostrar de nuevo
+        if (shownNotifications.contains(notificationKey)) {
+            android.util.Log.d(TAG, "⏭️ Notificación ya mostrada: $notificationKey")
+            return
+        }
+
+        // ✅ Marcar como mostrada
+        shownNotifications.add(notificationKey)
+
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
         // Intent para abrir el chat cuando se toca la notificación
@@ -56,15 +71,15 @@ object ChatNotificationManager {
 
         val pendingIntent = PendingIntent.getActivity(
             context,
-            chatId.hashCode(),
+            notificationKey.hashCode(),
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_profile_placeholder) // Cambiar por tu icono
+            .setSmallIcon(R.drawable.ic_profile_placeholder)
             .setContentTitle(senderName)
-            .setContentText(messageText)
+            .setContentText(messageText.take(100))
             .setStyle(NotificationCompat.BigTextStyle().bigText(messageText))
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
@@ -73,7 +88,30 @@ object ChatNotificationManager {
             .setLights(0xFF5252, 1000, 1000)
             .build()
 
-        notificationManager.notify(chatId.hashCode(), notification)
+        // ✅ Usar messageId como ID único de notificación
+        val notificationId = messageId.hashCode()
+        notificationManager.notify(notificationId, notification)
+
+        android.util.Log.d(TAG, "✅ Notificación mostrada: $senderName - $messageText")
+    }
+
+    /**
+     * ✅ NUEVO: Limpiar notificaciones cuando se abre el chat
+     */
+    fun clearNotificationsForChat(context: Context, chatId: String) {
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        // Limpiar solo las notificaciones de este chat
+        shownNotifications.removeAll { it.startsWith("$chatId-") }
+
+        android.util.Log.d(TAG, "🗑️ Notificaciones limpias para chat: $chatId")
+    }
+
+    /**
+     * ✅ NUEVO: Obtener todas las notificaciones guardadas
+     */
+    fun getShowedNotifications(): Set<String> {
+        return shownNotifications.toSet()
     }
 
     /**
@@ -91,21 +129,7 @@ object ChatNotificationManager {
     }
 
     /**
-     * Incrementar contador de no leídos cuando llega un mensaje
-     */
-    suspend fun incrementUnreadCount(chatId: String, userId: String) {
-        try {
-            FirebaseFirestore.getInstance()
-                .document("chats/$chatId")
-                .update("unreadCount.$userId", com.google.firebase.firestore.FieldValue.increment(1))
-                .await()
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "Error incrementando no leídos: ${e.message}")
-        }
-    }
-
-    /**
-     * ✅ NUEVO: Marcar como NO leído cuando otro usuario envía mensaje
+     * Marcar como NO leído cuando otro usuario envía mensaje
      */
     suspend fun markChatAsUnread(chatId: String, userId: String) {
         try {
@@ -142,23 +166,5 @@ object ChatNotificationManager {
             android.util.Log.e(TAG, "Error obteniendo total no leídos: ${e.message}")
             0
         }
-    }
-}
-
-/**
- * Extensión para usar en ChatActivity
- */
-// ✅ ELIMINADA - No es necesaria
-
-
-/**
- * Actualizar el contador de no leídos en tiempo real
- */
-fun updateUnreadBadge(context: Context, chatId: String, unreadCount: Int) {
-    // Esto se llama desde el adapter cuando actualiza datos
-    if (unreadCount > 0) {
-        // Mostrar badge en el ícono de la app (opcional)
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        // Aquí puedes actualizar el ícono de la app con el contador
     }
 }
