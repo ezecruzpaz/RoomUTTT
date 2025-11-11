@@ -51,6 +51,8 @@ class ChatActivity : AppCompatActivity() {
 
         ChatNotificationManager.createNotificationChannel(this)
 
+        // ✅ NUEVO: Ocultar botón de llamada INMEDIATAMENTE
+        binding.btnCall.visibility = android.view.View.GONE
 
         // Obtener datos del intent
         roomId = intent.getStringExtra("roomId") ?: ""
@@ -84,7 +86,6 @@ class ChatActivity : AppCompatActivity() {
         listenToMessages()
         createChatIfNotExists()
 
-
         // Enviar mensaje predefinido automáticamente
         if (predefinedMessage != null && predefinedMessage!!.isNotEmpty()) {
             binding.etMessage.setText(predefinedMessage)
@@ -94,7 +95,6 @@ class ChatActivity : AppCompatActivity() {
             }
         }
     }
-
     private fun setupUI() {
         // Configurar nombre del contacto
         binding.tvContactName.text = otherUserName
@@ -102,59 +102,67 @@ class ChatActivity : AppCompatActivity() {
         // Cargar avatar del usuario desde Firestore
         loadUserAvatar()
 
-        // ✅ VERIFICAR ROL antes de mostrar botón de llamada
-        checkUserRoleAndSetupCallButton()
+        // ✅ VERIFICAR ROL del OTRO usuario (otherUserId) en el chat
+        checkOtherUserRoleAndSetupCallButton()
     }
-    private fun checkUserRoleAndSetupCallButton() {
-        firestore.collection("renters").document(currentUserId).get()
+
+    private fun checkOtherUserRoleAndSetupCallButton() {
+        // ✅ Buscar en renters primero
+        firestore.collection("renters").document(otherUserId).get()
             .addOnSuccessListener { renterDoc ->
                 if (renterDoc.exists()) {
-                    // ✅ Es RENTER - MOSTRAR botón de llamada
-                    Log.d("ChatActivity", "✅ Usuario es RENTER - Habilitando llamadas")
+                    // ✅ El otro usuario ES RENTER - MOSTRAR botón de llamada
+                    Log.d("ChatActivity", "✅ Otra persona es RENTER - Mostrando botón de llamada")
                     binding.btnCall.visibility = android.view.View.VISIBLE
                     setupCallButton()
                 } else {
-                    // NO es renter, verificar si es usuario normal
-                    checkIfNormalUser()
-                }
-            }
-            .addOnFailureListener {
-                // Error, intentar verificar como usuario normal
-                checkIfNormalUser()
-            }
-    }
-    private fun checkIfNormalUser() {
-        firestore.collection("users").document(currentUserId).get()
-            .addOnSuccessListener { userDoc ->
-                if (userDoc.exists()) {
-                    val role = userDoc.getString("role") ?: "user"
+                    // El otro NO está en renters, verificar si es usuario normal
+                    firestore.collection("users").document(otherUserId).get()
+                        .addOnSuccessListener { userDoc ->
+                            if (userDoc.exists()) {
+                                val role = userDoc.getString("role") ?: "user"
 
-                    if (role == "renter") {
-                        // Es RENTER - MOSTRAR botón
-                        Log.d("ChatActivity", "✅ Usuario es RENTER (desde users) - Habilitando llamadas")
-                        binding.btnCall.visibility = android.view.View.VISIBLE
-                        setupCallButton()
-                    } else {
-                        // Es usuario normal - OCULTAR botón
-                        Log.d("ChatActivity", "⛔ Usuario es NORMAL - Deshabilitando llamadas")
-                        binding.btnCall.visibility = android.view.View.GONE
-                    }
-                } else {
-                    // Usuario no encontrado - OCULTAR por seguridad
-                    Log.w("ChatActivity", "⚠️ Usuario no encontrado - Deshabilitando llamadas")
-                    binding.btnCall.visibility = android.view.View.GONE
+                                if (role == "renter") {
+                                    // ✅ Es RENTER - MOSTRAR botón
+                                    Log.d("ChatActivity", "✅ Otra persona es RENTER - Mostrando botón de llamada")
+                                    binding.btnCall.visibility = android.view.View.VISIBLE
+                                    setupCallButton()
+                                } else {
+                                    // ⛔ Es usuario normal - OCULTAR botón
+                                    Log.d("ChatActivity", "⛔ Otra persona es USUARIO NORMAL - Ocultando botón de llamada")
+                                    binding.btnCall.visibility = android.view.View.GONE
+                                }
+                            } else {
+                                // Usuario no encontrado - OCULTAR
+                                Log.w("ChatActivity", "⚠️ Otra persona no encontrada - Ocultando botón")
+                                binding.btnCall.visibility = android.view.View.GONE
+                            }
+                        }
+                        .addOnFailureListener { e ->
+                            Log.e("ChatActivity", "❌ Error verificando en users: ${e.message}")
+                            binding.btnCall.visibility = android.view.View.GONE
+                        }
                 }
             }
             .addOnFailureListener { e ->
-                Log.e("ChatActivity", "❌ Error verificando rol: ${e.message}")
-                // OCULTAR por defecto si hay error
-                binding.btnCall.visibility = android.view.View.GONE
+                Log.e("ChatActivity", "❌ Error verificando en renters: ${e.message}")
+                // Fallback: buscar en users
+                firestore.collection("users").document(otherUserId).get()
+                    .addOnSuccessListener { userDoc ->
+                        if (userDoc.exists()) {
+                            val role = userDoc.getString("role") ?: "user"
+                            if (role == "renter") {
+                                binding.btnCall.visibility = android.view.View.VISIBLE
+                                setupCallButton()
+                            } else {
+                                binding.btnCall.visibility = android.view.View.GONE
+                            }
+                        } else {
+                            binding.btnCall.visibility = android.view.View.GONE
+                        }
+                    }
             }
     }
-
-    /**
-     * ✅ setupCallButton() - SIN CAMBIOS
-     */
     private fun setupCallButton() {
         binding.btnCall.setOnClickListener {
             Log.d("ChatActivity", "🔍 Buscando teléfono de usuario: $otherUserId")
@@ -463,7 +471,6 @@ class ChatActivity : AppCompatActivity() {
                 }
                  }
 }
-
     private fun createChatIfNotExists() {
         val chatRef = firestore.document("chats/$chatId")
         chatRef.get().addOnSuccessListener { doc ->
