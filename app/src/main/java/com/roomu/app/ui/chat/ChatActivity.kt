@@ -110,13 +110,33 @@ class ChatActivity : AppCompatActivity() {
     }
 
     private fun setupRecyclerView() {
-        adapter = ChatAdapter(messages, currentUserId)
+        adapter = ChatAdapter(
+            messages,
+            currentUserId,
+            onMessageDelete = { message ->
+                deleteMessage(message)
+            }
+        )
         binding.rvMessages.apply {
             adapter = this@ChatActivity.adapter
             layoutManager = LinearLayoutManager(this@ChatActivity).apply {
                 stackFromEnd = true
             }
         }
+    }
+
+    private fun deleteMessage(message: Message) {
+        firestore.collection("chats/$chatId/messages")
+            .document(message.messageId)
+            .delete()
+            .addOnSuccessListener {
+                Log.d("CHAT", "✅ Mensaje eliminado: ${message.messageId}")
+                Toast.makeText(this, "Mensaje eliminado", Toast.LENGTH_SHORT).show()
+            }
+            .addOnFailureListener { e ->
+                Log.e("CHAT", "❌ Error eliminando mensaje: ${e.message}")
+                Toast.makeText(this, "Error al eliminar", Toast.LENGTH_SHORT).show()
+            }
     }
 
     private fun setupBackButton() {
