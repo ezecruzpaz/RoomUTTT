@@ -1,4 +1,3 @@
-// app/src/main/java/com/roomu/app/data/model/Message.kt
 package com.roomu.app.data.model
 
 import com.google.firebase.firestore.ServerTimestamp

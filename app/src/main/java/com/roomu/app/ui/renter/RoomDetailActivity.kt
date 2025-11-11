@@ -64,15 +64,11 @@ class RoomDetailActivity : AppCompatActivity(), OnMapReadyCallback {
             finish()
             return
         }
-
         room = allRooms.find { it.id == roomId }
         if (room == null) {
-            Log.e(TAG, "No se encontró el cuarto con ID: $roomId")
             finish()
             return
         }
-
-        Log.d(TAG, "Cuarto encontrado: ${room?.nombre}")
 
         // ✅ OBTENER NOMBRE DEL ARRENDATARIO
         lifecycleScope.launch {
@@ -91,7 +87,6 @@ class RoomDetailActivity : AppCompatActivity(), OnMapReadyCallback {
             try {
                 mainViewModel.loadRooms()
             } catch (e: Exception) {
-                Log.e(TAG, "Error cargando cuartos: ${e.message}")
             }
         }
     }
@@ -107,9 +102,7 @@ class RoomDetailActivity : AppCompatActivity(), OnMapReadyCallback {
                 ?: doc.getString("nombre")
                 ?: "Usuario"
             roomData.renterName = name
-            Log.d(TAG, "✅ Nombre del arrendatario obtenido: $name (userId: ${roomData.userId})")
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Error obteniendo nombre del arrendatario: ${e.message}")
             roomData.renterName = "Usuario"
         }
     }
@@ -169,7 +162,6 @@ class RoomDetailActivity : AppCompatActivity(), OnMapReadyCallback {
             }
             "Tula de Allende, Hidalgo"
         } catch (e: Exception) {
-            Log.e(TAG, "Error al convertir coordenadas: ${e.message}")
             "Tula de Allende, Hidalgo"
         }
     }
@@ -182,7 +174,6 @@ class RoomDetailActivity : AppCompatActivity(), OnMapReadyCallback {
         val adapter = ImagePagerAdapter(imageList)
         binding.imageViewpager.adapter = adapter
         TabLayoutMediator(binding.tabIndicator, binding.imageViewpager) { _, _ -> }.attach()
-        Log.d(TAG, "Galería configurada con ${imageList.size} imágenes")
     }
 
     private fun setupServices(roomData: RoomData) {
@@ -253,6 +244,21 @@ class RoomDetailActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     private fun setupListeners() {
+        // ✅ BOTÓN DE REGRESO - Navega según el rol del usuario
+        binding.ivBack.setOnClickListener {
+            lifecycleScope.launch {
+                val isRenter = checkIfUserIsRenter()
+                val intent = if (isRenter) {
+                    Intent(this@RoomDetailActivity, com.roomu.app.ui.renter.RenterDashboardActivity::class.java)
+                } else {
+                    Intent(this@RoomDetailActivity, MainActivity::class.java)
+                }
+                intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                startActivity(intent)
+                finish()
+            }
+        }
+
         binding.btnContactContainer.setOnClickListener {
             room?.let { roomData ->
                 lifecycleScope.launch {
