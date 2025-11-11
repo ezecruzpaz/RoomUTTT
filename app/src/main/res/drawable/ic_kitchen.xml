@@ -3,7 +3,37 @@
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
+
+    <!-- Cuerpo principal de la estufa -->
     <path
-        android:fillColor="#666666"
-        android:pathData="M18,2.01L6,2c-1.1,0 -2,0.89 -2,2v16c0,1.1 0.9,2 2,2h12c1.1,0 2,-0.9 2,-2L20,4c0,-1.11 -0.9,-1.99 -2,-1.99zM18,20L6,20v-9.02h12L18,20zM18,8.99L6,8.99L6,4h12v4.99zM8,5h2v3L8,8zM11,5h2v3h-2zM14,5h2v3h-2z"/>
+        android:fillColor="#FF8A50"
+        android:pathData="M4,6h16c1.1,0 2,0.9 2,2v10c0,1.1 -0.9,2 -2,2H4c-1.1,0 -2,-0.9 -2,-2V8c0,-1.1 0.9,-2 2,-2z"/>
+
+    <!-- Hornillas superiores -->
+    <path
+        android:fillColor="#424242"
+        android:pathData="M7,8h2v2H7zM11,8h2v2h-2zM15,8h2v2h-2z"/>
+
+    <!-- Panel superior (borde metálico) -->
+    <path
+        android:fillColor="#CFD8DC"
+        android:pathData="M3,6h18v1c0,0.55 -0.45,1 -1,1H4c-0.55,0 -1,-0.45 -1,-1V6z"/>
+
+    <!-- Puerta del horno -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:strokeColor="#B0BEC5"
+        android:strokeWidth="0.6"
+        android:pathData="M7,10h10v8H7z"/>
+
+    <!-- Manija del horno -->
+    <path
+        android:fillColor="#90A4AE"
+        android:pathData="M10,13h4v0.8h-4z"/>
+
+    <!-- Patas o base -->
+    <path
+        android:fillColor="#5D4037"
+        android:pathData="M4,20h2v1H4zM18,20h2v1h-2z"/>
+
 </vector>

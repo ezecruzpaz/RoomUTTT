@@ -684,6 +684,7 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
         return seleccionados.joinToString(",")
     }
 
+
     private fun createRoom() {
         val uid = auth.currentUser?.uid
 
@@ -698,6 +699,7 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
         val capacidadStr = etCapacidad.text.toString().trim()
         val serviciosStr = getServiciosString()
 
+        // Validaciones
         if (nombre.isEmpty()) {
             etNombre.error = "El nombre es requerido"
             etNombre.requestFocus()
@@ -778,9 +780,12 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
 
         val ubicacion = currentLocation?.let { "${it.latitude},${it.longitude}" } ?: "20.0910,-98.7624"
 
+        // ✅ PROCESO OPTIMIZADO DE CREACIÓN
         lifecycleScope.launch {
             try {
                 showProgressDialog("Subiendo cuarto...")
+
+                // Preparar datos del cuarto
                 val nombreBody = nombre.toRequestBody("text/plain".toMediaTypeOrNull())
                 val precioBody = precio.toString().toRequestBody("text/plain".toMediaTypeOrNull())
                 val descripcionBody = (descripcion.ifEmpty { "Sin descripción" })
@@ -791,10 +796,11 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
                 val userIdBody = uid.toRequestBody("text/plain".toMediaTypeOrNull())
                 val ubicacionBody = ubicacion.toRequestBody("text/plain".toMediaTypeOrNull())
 
+                // Preparar imágenes
                 val imageParts = prepareImageParts(selectedImageUris)
+                Log.d(TAG, "📤 Enviando ${imageParts.size} imagen(es)")
 
-                Log.d(TAG, "Enviando ${imageParts.size} imagen(es)")
-
+                // Hacer la petición al servidor
                 val response = roomApiService.createRoom(
                     nombre = nombreBody,
                     precio = precioBody,
@@ -809,39 +815,70 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
 
                 dismissProgressDialog()
 
+                // ✅ MANEJO DE RESPUESTA MEJORADO - MENSAJE SIEMPRE EN ESPAÑOL
                 if (response.isSuccessful && response.body() != null) {
-                    val body = response.body()
+                    Log.d(TAG, "✅ Cuarto creado exitosamente")
+
+                    // Mensaje siempre en español, sin importar la respuesta del servidor
                     showSuccessDialog(
                         title = "¡Éxito!",
-                        message = body?.message ?: "Cuarto creado exitosamente"
+                        message = "Cuarto creado exitosamente"  // ✅ Mensaje fijo en español
                     ) {
+                        // Limpiar formulario antes de navegar
+                        limpiarFormulario()
+
+                        // Navegar al dashboard
                         val intent = Intent(this@CreateRoomActivity, RenterDashboardActivity::class.java)
                         intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
                         startActivity(intent)
                         finish()
                     }
                 } else {
-                    showErrorDialog("Error", "Error: ${response.code()}")
+                    Log.e(TAG, "❌ Error al crear cuarto: ${response.code()}")
+                    showErrorDialog(
+                        "Error al crear cuarto",
+                        "Hubo un problema al crear el cuarto. Código: ${response.code()}"
+                    )
                 }
             } catch (e: Exception) {
                 dismissProgressDialog()
                 Log.e(TAG, "❌ Error de red: ${e.message}", e)
-                showErrorDialog("Error de Conexión", "Error de conexión: ${e.message}")
+                showErrorDialog(
+                    "Error de Conexión",
+                    "No se pudo conectar con el servidor. Verifica tu conexión a internet."
+                )
             }
         }
     }
 
+    // ✅ NUEVA FUNCIÓN: Limpiar formulario después de crear el cuarto
+    private fun limpiarFormulario() {
+        etNombre.text.clear()
+        etPrecio.text.clear()
+        etDescripcion.text.clear()
+        etCapacidad.text.clear()
+        selectedImageUris.clear()
+        serviciosSeleccionados.fill(false)
+
+        tvServiciosSeleccionados.text = "Seleccionar servicios"
+        tvServiciosSeleccionados.setTextColor(getColor(android.R.color.darker_gray))
+        tvImageCount.text = "0/$MAX_IMAGES imagen(es) seleccionada(s)"
+    }
+
+    // ✅ FUNCIÓN prepareImageParts optimizada (sin cambios, pero la incluyo para referencia)
     private fun prepareImageParts(uris: List<Uri>): List<MultipartBody.Part> {
         val parts = mutableListOf<MultipartBody.Part>()
-        uris.forEach { uri ->
+        uris.forEachIndexed { index, uri ->
             try {
-                val fileName = getFileName(uri) ?: "image_${System.currentTimeMillis()}.jpg"
+                val fileName = getFileName(uri) ?: "imagen_cuarto_${System.currentTimeMillis()}_$index.jpg"
                 val tempFile = File(cacheDir, fileName)
+
                 contentResolver.openInputStream(uri)?.use { input ->
                     FileOutputStream(tempFile).use { output ->
                         input.copyTo(output)
                     }
                 }
+
                 val mimeType = contentResolver.getType(uri) ?: "image/jpeg"
                 val requestBody = tempFile.asRequestBody(mimeType.toMediaTypeOrNull())
                 val part = MultipartBody.Part.createFormData(
@@ -850,8 +887,10 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
                     requestBody
                 )
                 parts.add(part)
+
+                Log.d(TAG, "✅ Imagen preparada: $fileName (${tempFile.length() / 1024}KB)")
             } catch (e: Exception) {
-                Log.e(TAG, "Error preparando imagen: ${e.message}", e)
+                Log.e(TAG, "❌ Error preparando imagen $index: ${e.message}", e)
             }
         }
         return parts
