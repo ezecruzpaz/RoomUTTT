@@ -22,4 +22,15 @@
     <color name="red">#FF5252</color>
 
 
+
+    <!-- También agrega estos en res/values/colors.xml -->
+
+    <color name="chip_background_checked">#E3F2FD</color>
+    <color name="chip_background_unchecked">#F5F5F5</color>
+    <color name="chip_stroke_checked">#2196F3</color>
+    <color name="chip_stroke_unchecked">#E0E0E0</color>
+    <color name="chip_text_checked">#2196F3</color>
+    <color name="chip_text_unchecked">#666666</color>
+
+
 </resources>

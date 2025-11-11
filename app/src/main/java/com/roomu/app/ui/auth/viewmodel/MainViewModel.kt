@@ -63,7 +63,6 @@ class MainViewModel @Inject constructor(
         locationPreferences.getLocation()?.let { location ->
             _currentLocation.value = location
             hasLocationPermission = true
-            Log.d(TAG, "📍 Ubicación restaurada: ${location.latitude}, ${location.longitude}")
         }
     }
 
@@ -95,7 +94,6 @@ class MainViewModel @Inject constructor(
                         // Actualizar marcadores en el mapa
                         updateMapMarkers()
                     } else {
-                        Log.w(TAG, "⚠️ No hay cuartos disponibles")
                         _allRooms.value = emptyList()
                         _rooms.value = emptyList()
                         _showViewMoreButton.value = false

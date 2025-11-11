@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/dialog_background"
+    android:padding="20dp">
+
+    <!-- Header del filtro -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="20dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Filtrar cuartos"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="#333333"/>
+
+        <TextView
+            android:id="@+id/tv_clear_filters"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Limpiar"
+            android:textSize="14sp"
+            android:textColor="#2196F3"
+            android:textStyle="bold"
+            android:padding="8dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackgroundBorderless"/>
+
+    </LinearLayout>
+
+    <!-- Sección de Estado -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Estado del cuarto"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:textColor="#666666"
+        android:layout_marginBottom="12dp"/>
+
+    <com.google.android.material.chip.ChipGroup
+        android:id="@+id/chip_group_status"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:singleSelection="true"
+        app:checkedChip="@id/chip_todos"
+        app:chipSpacingHorizontal="8dp"
+        android:layout_marginBottom="20dp">
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/chip_todos"
+            style="@style/Widget.MaterialComponents.Chip.Choice"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="📋 Todos"
+            android:textSize="14sp"
+            app:chipBackgroundColor="@color/chip_background_selector"
+            app:chipStrokeWidth="1dp"
+            app:chipStrokeColor="@color/chip_stroke_selector"
+            app:chipCornerRadius="20dp"/>
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/chip_ocupados"
+            style="@style/Widget.MaterialComponents.Chip.Choice"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="🔴 Ocupados"
+            android:textSize="14sp"
+            app:chipBackgroundColor="@color/chip_background_selector"
+            app:chipStrokeWidth="1dp"
+            app:chipStrokeColor="@color/chip_stroke_selector"
+            app:chipCornerRadius="20dp"/>
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/chip_disponibles"
+            style="@style/Widget.MaterialComponents.Chip.Choice"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="🟢 Disponibles"
+            android:textSize="14sp"
+            app:chipBackgroundColor="@color/chip_background_selector"
+            app:chipStrokeWidth="1dp"
+            app:chipStrokeColor="@color/chip_stroke_selector"
+            app:chipCornerRadius="20dp"/>
+
+    </com.google.android.material.chip.ChipGroup>
+
+    <!-- Divider -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#E0E0E0"
+        android:layout_marginBottom="16dp"/>
+
+    <!-- Botones de acción -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="end">
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btn_cancel_filter"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:text="Cancelar"
+            android:textColor="#666666"
+            android:background="@drawable/button_gray"
+            android:textAllCaps="false"
+            android:paddingHorizontal="24dp"
+            android:layout_marginEnd="8dp"/>
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btn_apply_filter"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:text="Aplicar"
+            android:textColor="#FFFFFF"
+            android:background="@drawable/button_primary"
+            android:textAllCaps="false"
+            android:paddingHorizontal="24dp"/>
+
+    </LinearLayout>
+
+</LinearLayout>

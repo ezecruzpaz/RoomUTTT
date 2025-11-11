@@ -5,7 +5,6 @@
     android:layout_height="match_parent"
     android:background="#FFFFFF">
 
-    <!-- Cambiado de ScrollView a LinearLayout principal -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -92,139 +91,20 @@
                 android:layout_height="1dp"
                 android:layout_weight="1" />
 
-            <!-- Botón de Filtros como Dropdown -->
-            <RelativeLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content">
+            <!-- ✅ Botón de Filtros (sin dropdown) -->
+            <Button
+                android:id="@+id/btn_filters"
+                android:layout_width="120dp"
+                android:layout_height="40dp"
+                android:text="Filtros ▼"
+                android:textColor="#000000"
+                android:backgroundTint="#F5F5F5"
+                android:textAllCaps="false"
+                android:paddingHorizontal="12dp"
+                android:textSize="14sp"
+                android:gravity="center"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
 
-                <Button
-                    android:id="@+id/btn_filters"
-                    android:layout_width="120dp"
-                    android:layout_height="40dp"
-                    android:text="Filtros ▼"
-                    android:textColor="#000000"
-                    android:backgroundTint="#F5F5F5"
-                    android:textAllCaps="false"
-                    android:paddingHorizontal="12dp"
-                    android:paddingEnd="8dp"
-                    android:textSize="14sp"
-                    android:gravity="center"
-                    style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
-
-                <!-- Dropdown Menu de Filtros -->
-                <androidx.cardview.widget.CardView
-                    android:id="@+id/layout_status_filters"
-                    android:layout_width="180dp"
-                    android:layout_height="wrap_content"
-                    android:layout_below="@id/btn_filters"
-                    android:layout_alignEnd="@id/btn_filters"
-                    android:layout_marginTop="4dp"
-                    android:visibility="gone"
-                    android:elevation="12dp"
-                    app:cardCornerRadius="8dp"
-                    app:cardElevation="8dp"
-                    app:cardBackgroundColor="#FFFFFF">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="8dp">
-
-                        <!-- Filtro: Todos -->
-                        <LinearLayout
-                            android:id="@+id/filter_all"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="horizontal"
-                            android:gravity="center_vertical"
-                            android:padding="12dp"
-                            android:background="?attr/selectableItemBackground">
-
-                            <TextView
-                                android:layout_width="20dp"
-                                android:layout_height="20dp"
-                                android:text="📋"
-                                android:textSize="16sp"
-                                android:gravity="center" />
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginStart="12dp"
-                                android:text="Todos"
-                                android:textSize="14sp"
-                                android:textColor="#000000" />
-                        </LinearLayout>
-
-                        <!-- Divisor -->
-                        <View
-                            android:layout_width="match_parent"
-                            android:layout_height="1dp"
-                            android:background="#E0E0E0"
-                            android:layout_marginVertical="4dp" />
-
-                        <!-- Filtro: Ocupados -->
-                        <LinearLayout
-                            android:id="@+id/filter_occupied"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="horizontal"
-                            android:gravity="center_vertical"
-                            android:padding="12dp"
-                            android:background="?attr/selectableItemBackground">
-
-                            <TextView
-                                android:layout_width="20dp"
-                                android:layout_height="20dp"
-                                android:text="🔴"
-                                android:textSize="16sp"
-                                android:gravity="center" />
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginStart="12dp"
-                                android:text="Ocupados"
-                                android:textSize="14sp"
-                                android:textColor="#000000" />
-                        </LinearLayout>
-
-                        <!-- Divisor -->
-                        <View
-                            android:layout_width="match_parent"
-                            android:layout_height="1dp"
-                            android:background="#E0E0E0"
-                            android:layout_marginVertical="4dp" />
-
-                        <!-- Filtro: Disponibles -->
-                        <LinearLayout
-                            android:id="@+id/filter_available"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="horizontal"
-                            android:gravity="center_vertical"
-                            android:padding="12dp"
-                            android:background="?attr/selectableItemBackground">
-
-                            <TextView
-                                android:layout_width="20dp"
-                                android:layout_height="20dp"
-                                android:text="🟢"
-                                android:textSize="16sp"
-                                android:gravity="center" />
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginStart="12dp"
-                                android:text="Disponibles"
-                                android:textSize="14sp"
-                                android:textColor="#000000" />
-                        </LinearLayout>
-                    </LinearLayout>
-                </androidx.cardview.widget.CardView>
-            </RelativeLayout>
         </LinearLayout>
 
         <!-- Título de Status -->
@@ -320,7 +200,7 @@
             </androidx.cardview.widget.CardView>
         </LinearLayout>
 
-        <!-- Lista de cuartos - AHORA OCUPA TODO EL ESPACIO RESTANTE -->
+        <!-- Lista de cuartos -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recycler_rooms"
             android:layout_width="match_parent"

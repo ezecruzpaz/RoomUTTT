@@ -1,17 +1,21 @@
 package com.roomu.app.ui.renter
 
+import android.app.Dialog
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
+import android.view.ViewGroup
+import android.view.Window
 import android.widget.Button
 import android.widget.ImageView
-import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import com.google.android.material.chip.Chip
+import com.google.android.material.chip.ChipGroup
 import com.google.firebase.auth.FirebaseAuth
 import com.roomu.app.R
 import com.roomu.app.data.api.RoomApiService
@@ -40,10 +44,6 @@ class RenterDashboardActivity : AppCompatActivity() {
     private lateinit var tvAvailableCount: TextView
     private lateinit var btnAddRoom: Button
     private lateinit var btnFilters: Button
-    private lateinit var filterAll: LinearLayout
-    private lateinit var filterOccupied: LinearLayout
-    private lateinit var filterAvailable: LinearLayout
-    private lateinit var layoutStatusFilters: androidx.cardview.widget.CardView
     private lateinit var bottomNavigation: BottomNavigationView
     private lateinit var ivLogout: ImageView
     private lateinit var ivNotifications: ImageView
@@ -51,7 +51,6 @@ class RenterDashboardActivity : AppCompatActivity() {
     private var allRooms = mutableListOf<RoomData>()
     private var filteredRooms = mutableListOf<RoomData>()
     private var currentFilter: RoomFilter = RoomFilter.ALL
-    private var isFiltersVisible = false
 
     enum class RoomFilter {
         ALL, OCCUPIED, AVAILABLE
@@ -79,14 +78,9 @@ class RenterDashboardActivity : AppCompatActivity() {
         tvAvailableCount = findViewById(R.id.tv_available_count)
         btnAddRoom = findViewById(R.id.btn_add_room)
         btnFilters = findViewById(R.id.btn_filters)
-        filterOccupied = findViewById(R.id.filter_occupied)
-        filterAvailable = findViewById(R.id.filter_available)
-        layoutStatusFilters = findViewById(R.id.layout_status_filters)
         bottomNavigation = findViewById(R.id.bottom_navigation)
         ivLogout = findViewById(R.id.iv_logout)
         ivNotifications = findViewById(R.id.iv_notifications)
-
-        layoutStatusFilters.visibility = View.GONE
     }
 
     private fun setupRecyclerView() {
@@ -122,28 +116,9 @@ class RenterDashboardActivity : AppCompatActivity() {
             startActivity(Intent(this, CreateRoomActivity::class.java))
         }
 
+        // ✅ NUEVO: Abrir diálogo de filtros
         btnFilters.setOnClickListener {
-            isFiltersVisible = !isFiltersVisible
-            layoutStatusFilters.visibility = if (isFiltersVisible) View.VISIBLE else View.GONE
-            btnFilters.text = if (isFiltersVisible) "Filtros ▲" else "Filtros ▼"
-        }
-
-        filterOccupied.setOnClickListener {
-            currentFilter = if (currentFilter == RoomFilter.OCCUPIED) {
-                RoomFilter.ALL
-            } else {
-                RoomFilter.OCCUPIED
-            }
-            applyFilter()
-        }
-
-        filterAvailable.setOnClickListener {
-            currentFilter = if (currentFilter == RoomFilter.AVAILABLE) {
-                RoomFilter.ALL
-            } else {
-                RoomFilter.AVAILABLE
-            }
-            applyFilter()
+            showFilterDialog()
         }
 
         // ✅ BOTTOM NAVIGATION CON CHATS
@@ -161,7 +136,6 @@ class RenterDashboardActivity : AppCompatActivity() {
                 }
 
                 R.id.nav_chat -> {
-                    // ✅ ABRIR PANTALLA DE CHATS
                     startActivity(Intent(this, RenterChatsActivity::class.java))
                     false
                 }
@@ -169,6 +143,81 @@ class RenterDashboardActivity : AppCompatActivity() {
                 else -> false
             }
         }
+    }
+
+    // ✅ NUEVO: Mostrar diálogo de filtros con chips
+    private fun showFilterDialog() {
+        val dialog = Dialog(this)
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+        dialog.setContentView(R.layout.dialog_filter_cuartos)
+
+        // Configurar el ancho del diálogo (90% del ancho de pantalla)
+        dialog.window?.setLayout(
+            (resources.displayMetrics.widthPixels * 0.9).toInt(),
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        )
+
+        // Hacer el fondo transparente para que se vean las esquinas redondeadas
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        // Referencias a las vistas
+        val chipGroupStatus = dialog.findViewById<ChipGroup>(R.id.chip_group_status)
+        val chipTodos = dialog.findViewById<Chip>(R.id.chip_todos)
+        val chipOcupados = dialog.findViewById<Chip>(R.id.chip_ocupados)
+        val chipDisponibles = dialog.findViewById<Chip>(R.id.chip_disponibles)
+        val tvClearFilters = dialog.findViewById<TextView>(R.id.tv_clear_filters)
+        val btnCancel = dialog.findViewById<Button>(R.id.btn_cancel_filter)
+        val btnApply = dialog.findViewById<Button>(R.id.btn_apply_filter)
+
+        // Establecer el filtro actual seleccionado
+        when(currentFilter) {
+            RoomFilter.ALL -> chipTodos.isChecked = true
+            RoomFilter.OCCUPIED -> chipOcupados.isChecked = true
+            RoomFilter.AVAILABLE -> chipDisponibles.isChecked = true
+        }
+
+        // Botón "Limpiar" - vuelve a "Todos"
+        tvClearFilters.setOnClickListener {
+            chipTodos.isChecked = true
+        }
+
+        // Botón Cancelar - cierra el diálogo sin aplicar cambios
+        btnCancel.setOnClickListener {
+            dialog.dismiss()
+        }
+
+        // Botón Aplicar - aplica el filtro seleccionado
+        btnApply.setOnClickListener {
+            val selectedChipId = chipGroupStatus.checkedChipId
+
+            currentFilter = when(selectedChipId) {
+                R.id.chip_todos -> RoomFilter.ALL
+                R.id.chip_ocupados -> RoomFilter.OCCUPIED
+                R.id.chip_disponibles -> RoomFilter.AVAILABLE
+                else -> RoomFilter.ALL
+            }
+
+            // Aplicar el filtro a la lista
+            applyFilter()
+
+            // Actualizar el texto del botón
+            updateFilterButtonText()
+
+            // Cerrar el diálogo
+            dialog.dismiss()
+        }
+
+        dialog.show()
+    }
+
+    // ✅ NUEVO: Actualizar texto del botón de filtros
+    private fun updateFilterButtonText() {
+        val text = when(currentFilter) {
+            RoomFilter.ALL -> "Filtros ▼"
+            RoomFilter.OCCUPIED -> "🔴 Ocupados ▼"
+            RoomFilter.AVAILABLE -> "🟢 Disponibles ▼"
+        }
+        btnFilters.text = text
     }
 
     private fun showLogoutConfirmationDialog() {
@@ -209,8 +258,6 @@ class RenterDashboardActivity : AppCompatActivity() {
                     finish()
                 }
                 .show()
-
-            println("✅ Sesión cerrada exitosamente")
         } catch (e: Exception) {
             loadingDialog.dismissWithAnimation()
 
@@ -218,8 +265,6 @@ class RenterDashboardActivity : AppCompatActivity() {
                 .setTitleText("Error")
                 .setContentText("No se pudo cerrar sesión: ${e.message}")
                 .show()
-
-            println("❌ Error al cerrar sesión: ${e.message}")
         }
     }
 
@@ -228,16 +273,12 @@ class RenterDashboardActivity : AppCompatActivity() {
         val uid = user?.uid
 
         if (uid == null) {
-            println("⚠️ Usuario no autenticado")
             showEmptyState()
             return
         }
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                println("🔄 Cargando cuartos desde API...")
-                println("🔑 UID del usuario: $uid")
-
                 val response = roomApiService.getRooms()
 
                 withContext(Dispatchers.Main) {
@@ -246,21 +287,9 @@ class RenterDashboardActivity : AppCompatActivity() {
                         val roomsList = apiResponse?.result
 
                         if (roomsList != null) {
-                            println("📦 Total de cuartos en API: ${roomsList.size}")
-
                             allRooms = roomsList.filter { room ->
-                                val roomUserId = room.userId.trim()
-                                val matches = roomUserId.equals(uid.trim(), ignoreCase = true)
-
-                                println("🏠 Cuarto: ${room.nombre}")
-                                println("   UserId del cuarto: '$roomUserId'")
-                                println("   UserId buscado: '$uid'")
-                                println("   ¿Coincide?: $matches")
-
-                                matches
+                                room.userId.trim().equals(uid.trim(), ignoreCase = true)
                             }.toMutableList()
-
-                            println("✅ Cuartos del usuario: ${allRooms.size}")
 
                             if (allRooms.isEmpty()) {
                                 showEmptyState()
@@ -270,7 +299,6 @@ class RenterDashboardActivity : AppCompatActivity() {
                                 applyFilter()
                             }
                         } else {
-                            println("❌ Respuesta vacía del servidor")
                             showEmptyState()
                             Toast.makeText(
                                 this@RenterDashboardActivity,
@@ -279,7 +307,6 @@ class RenterDashboardActivity : AppCompatActivity() {
                             ).show()
                         }
                     } else {
-                        println("❌ Error en respuesta: ${response.code()} - ${response.message()}")
                         showEmptyState()
                         Toast.makeText(
                             this@RenterDashboardActivity,
@@ -289,9 +316,6 @@ class RenterDashboardActivity : AppCompatActivity() {
                     }
                 }
             } catch (e: Exception) {
-                println("❌ Error cargando cuartos: ${e.message}")
-                e.printStackTrace()
-
                 withContext(Dispatchers.Main) {
                     showEmptyState()
                     Toast.makeText(
@@ -314,15 +338,6 @@ class RenterDashboardActivity : AppCompatActivity() {
         }
 
         adapter.notifyDataSetChanged()
-        updateFilterUI()
-    }
-
-    private fun updateFilterUI() {
-        val selectedAlpha = 1.0f
-        val normalAlpha = 0.6f
-
-        filterOccupied.alpha = if (currentFilter == RoomFilter.OCCUPIED) selectedAlpha else normalAlpha
-        filterAvailable.alpha = if (currentFilter == RoomFilter.AVAILABLE) selectedAlpha else normalAlpha
     }
 
     private fun updateStatusCounts() {

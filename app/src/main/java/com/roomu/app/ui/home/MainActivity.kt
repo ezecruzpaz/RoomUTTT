@@ -7,12 +7,10 @@ import android.location.Location
 import android.os.Bundle
 import android.util.Log
 import android.view.View
-import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
-import android.widget.Toast
 import cn.pedant.SweetAlert.SweetAlertDialog
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
@@ -44,6 +42,7 @@ import com.roomu.app.ui.home.adapter.RoomAdapter
 import com.roomu.app.ui.home.viewmodel.MainViewModel
 import com.roomu.app.ui.profile.ProfileActivity
 import com.roomu.app.ui.room.AllRoomsActivity
+import com.roomu.app.ui.room.RoomDetailActivity
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -69,8 +68,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private val TAG = "MainActivity"
     private var googleMap: GoogleMap? = null
-
-    // ✅ Variable para controlar que el mensaje solo aparezca una vez
     private var locationMessageShown = false
 
     private val locationPermissionLauncher = registerForActivityResult(
@@ -87,9 +84,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // ✅ NUEVO: Verificar si el usuario es arrendatario
+        // Verificar si el usuario es arrendatario
         lifecycleScope.launch {
-            val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+            val db = FirebaseFirestore.getInstance()
             val uid = FirebaseAuth.getInstance().currentUser?.uid
 
             if (uid != null) {
@@ -97,7 +94,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                     val renterDoc = db.collection("renters").document(uid).get().await()
 
                     if (renterDoc.exists()) {
-                        // Es arrendatario, redirigir a RenterDashboard
                         val intent = Intent(this@MainActivity, com.roomu.app.ui.renter.RenterDashboardActivity::class.java)
                         intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
                         startActivity(intent)
@@ -105,11 +101,11 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                         return@launch
                     }
                 } catch (e: Exception) {
+                    Log.e(TAG, "Error verificando arrendatario: ${e.message}")
                 }
             }
         }
 
-        // ✅ Una sola llamada a setContentView
         setContentView(R.layout.activity_main)
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
@@ -129,7 +125,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         mapFragment.getMapAsync(this)
 
         observeViewModel()
-        viewModel.loadRooms()
+
+        // ✅ Cargar cuartos solo después de obtener ubicación
         checkAndRequestLocationPermission()
     }
 
@@ -137,7 +134,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         searchView = findViewById(R.id.search_view)
         ivProfile = findViewById(R.id.iv_profile)
         ivNotifications = findViewById(R.id.iv_notifications)
-        ivLogout = findViewById(R.id.iv_logout) // ✅ NUEVO
+        ivLogout = findViewById(R.id.iv_logout)
         recyclerRooms = findViewById(R.id.recycler_rooms)
         progressBar = findViewById(R.id.progress_bar)
         tvNoRooms = findViewById(R.id.tv_no_rooms)
@@ -146,6 +143,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         supportActionBar?.title = "Inicio"
         supportActionBar?.setDisplayHomeAsUpEnabled(false)
     }
+
     private fun setupSearchViewStyle() {
         try {
             val searchEditTextId = searchView.context.resources.getIdentifier(
@@ -169,6 +167,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 }
             }
         } catch (e: Exception) {
+            Log.e(TAG, "Error configurando SearchView: ${e.message}")
         }
     }
 
@@ -185,7 +184,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         return null
     }
 
-    // ✅ Agregar en setupListeners()
     private fun setupListeners() {
         searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
             override fun onQueryTextSubmit(query: String?): Boolean {
@@ -208,7 +206,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             startActivity(Intent(this, ProfileActivity::class.java))
         }
 
-        // ✅ ACTUALIZADO: Abre ChatsListActivity en lugar de mostrar Toast
         ivNotifications.setOnClickListener {
             val intent = Intent(this, ChatsListActivity::class.java)
             startActivity(intent)
@@ -234,28 +231,23 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             }
             .show()
     }
-    // ✅ NUEVO: Función para cerrar sesión
+
     private fun performLogout() {
-        // Mostrar diálogo de carga
         val loadingDialog = SweetAlertDialog(this, SweetAlertDialog.PROGRESS_TYPE)
             .setTitleText("Cerrando sesión...")
         loadingDialog.setCancelable(false)
         loadingDialog.show()
 
         try {
-            // Cerrar sesión en Firebase
             FirebaseAuth.getInstance().signOut()
-
             loadingDialog.dismissWithAnimation()
 
-            // Mostrar mensaje de éxito
             SweetAlertDialog(this, SweetAlertDialog.SUCCESS_TYPE)
                 .setTitleText("Sesión cerrada")
                 .setContentText("Has cerrado sesión exitosamente")
                 .setConfirmClickListener { dialog ->
                     dialog.dismissWithAnimation()
 
-                    // Redirigir a LoginActivity
                     val intent = Intent(this, com.roomu.app.ui.auth.LoginActivity::class.java)
                     intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
                     startActivity(intent)
@@ -270,12 +262,10 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 .setTitleText("Error")
                 .setContentText("No se pudo cerrar sesión: ${e.message}")
                 .show()
-
         }
     }
 
     private fun searchPlaceAndRooms(query: String) {
-
         sessionToken = AutocompleteSessionToken.newInstance()
 
         val request = FindAutocompletePredictionsRequest.builder()
@@ -300,6 +290,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 }
             }
             .addOnFailureListener { exception ->
+                Log.e(TAG, "Error en búsqueda: ${exception.message}")
                 viewModel.searchRooms(query)
             }
     }
@@ -330,15 +321,15 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 }
             }
             .addOnFailureListener { exception ->
+                Log.e(TAG, "Error obteniendo detalles: ${exception.message}")
                 viewModel.searchRooms(originalQuery)
             }
     }
 
     private fun setupRecyclerView() {
-
         recyclerRooms.layoutManager = LinearLayoutManager(this)
-        recyclerRooms.setHasFixedSize(false)  // ✅ Cambiar a false
-        recyclerRooms.isNestedScrollingEnabled = false  // ✅ Cambiar a false
+        recyclerRooms.setHasFixedSize(false)
+        recyclerRooms.isNestedScrollingEnabled = false
     }
 
     private fun setupBottomNavigation() {
@@ -356,7 +347,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
                 R.id.nav_chat -> {
                     val intent = Intent(this, ChatsListActivity::class.java).apply {
-                        putExtra("isRenter", false) // Es inquilino
+                        putExtra("isRenter", false)
                     }
                     startActivity(intent)
                     true
@@ -367,28 +358,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
-
-    private suspend fun checkIfUserIsRenter(): Boolean {
-        return try {
-            val currentUser = FirebaseAuth.getInstance().currentUser
-            if (currentUser == null) return false
-
-            val uid = currentUser.uid
-            val firestore = FirebaseFirestore.getInstance()
-
-            val renterDoc = firestore.collection("renters")
-                .document(uid)
-                .get()
-                .await()
-
-            renterDoc.exists()
-        } catch (e: Exception) {
-            Log.e("CheckRenter", "Error: ${e.message}")
-            false
-        }
-    }
-
-    // ✅ LÍNEA ~391-405 EN observeViewModel() - ELIMINAR O MODIFICAR:
+    // ✅ NUEVO: Click en cuarto abre detalles directamente
     private fun observeViewModel() {
         lifecycleScope.launch {
             launch {
@@ -410,11 +380,17 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
                         roomAdapter = RoomAdapter(
                             onRoomClick = { room ->
+                                // ✅ CAMBIADO: Abrir detalles directamente, sin Toast
+                                val intent = Intent(this@MainActivity, RoomDetailActivity::class.java)
+                                intent.putExtra("room_id", room.id)
+                                intent.putExtra("allRooms", ArrayList(allRooms))
+                                startActivity(intent)
+
+                                // ✅ También centrar en el mapa (opcional)
                                 room.getLatLng()?.let { (lat, lng) ->
                                     googleMap?.animateCamera(
                                         CameraUpdateFactory.newLatLngZoom(LatLng(lat, lng), 15f)
                                     )
-                                    Toast.makeText(this@MainActivity, "📍 ${room.nombre}", Toast.LENGTH_SHORT).show()
                                 }
                             },
                             allRooms = allRooms
@@ -441,7 +417,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         val defaultLocation = LatLng(20.0910, -98.7624)
         googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(defaultLocation, 11f))
 
-        // ✅ No llamar a getCurrentLocation() aquí, solo habilitar el botón
         if (hasLocationPermission()) {
             enableMyLocation()
         }
@@ -451,7 +426,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         when {
             hasLocationPermission() -> {
                 enableMyLocation()
-                getCurrentLocation() // ✅ Solo se llama una vez desde aquí
+                getCurrentLocation()
             }
             shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_FINE_LOCATION) -> {
                 showPermissionRationaleDialog()
@@ -474,6 +449,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         try {
             googleMap?.isMyLocationEnabled = true
         } catch (e: SecurityException) {
+            Log.e(TAG, "Error habilitando ubicación: ${e.message}")
         }
     }
 
@@ -490,7 +466,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                         )
                     )
 
-                    // ✅ Mostrar mensaje solo la primera vez
                     if (!locationMessageShown) {
                         locationMessageShown = true
                         SweetAlertDialog(this, SweetAlertDialog.SUCCESS_TYPE)
@@ -498,14 +473,19 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                             .setContentText("Tu ubicación actual ha sido detectada")
                             .show()
                     }
+
+                    // ✅ CARGAR CUARTOS SOLO DESPUÉS DE OBTENER UBICACIÓN
+                    viewModel.loadRooms()
                 } else {
                     Log.w(TAG, "⚠️ Ubicación null")
                     useDefaultLocation()
                 }
             }.addOnFailureListener {
+                Log.e(TAG, "Error obteniendo ubicación: ${it.message}")
                 useDefaultLocation()
             }
         } catch (e: SecurityException) {
+            Log.e(TAG, "Error de seguridad: ${e.message}")
             useDefaultLocation()
         }
     }
@@ -519,7 +499,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             CameraUpdateFactory.newLatLngZoom(LatLng(defaultLat, defaultLng), 11f)
         )
 
-        // ✅ Solo mostrar si no se ha mostrado ya el mensaje de ubicación
         if (!locationMessageShown) {
             locationMessageShown = true
             SweetAlertDialog(this)
@@ -527,6 +506,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 .setContentText("Se usará la ubicación de Tula")
                 .show()
         }
+
+        // ✅ CARGAR CUARTOS DESPUÉS DE ESTABLECER UBICACIÓN PREDETERMINADA
+        viewModel.loadRooms()
     }
 
     private fun showPermissionRationaleDialog() {
@@ -561,8 +543,10 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         if (hasLocationPermission() && googleMap != null) {
             enableMyLocation()
         }
-        // ✅ NUEVO: Recargar cuartos cada vez que la actividad vuelve a primer plano
-        viewModel.loadRooms()
-    }
 
+        // ✅ Solo recargar si ya tenemos ubicación
+        if (viewModel.currentLocation.value != null) {
+            viewModel.loadRooms()
+        }
+    }
 }
