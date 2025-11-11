@@ -7,6 +7,7 @@ import android.content.pm.PackageManager
 import android.location.Location
 import android.net.Uri
 import android.os.Bundle
+import android.provider.MediaStore
 import android.provider.OpenableColumns
 import android.text.Editable
 import android.text.TextWatcher
@@ -24,6 +25,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
@@ -52,6 +54,9 @@ import com.roomu.app.R
 import com.roomu.app.data.api.RoomApiService
 import com.roomu.app.domain.model.RoomData
 import com.roomu.app.ui.renter.RenterDashboardActivity
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @AndroidEntryPoint
 class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
@@ -82,6 +87,9 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
     private var currentLocation: LatLng? = null
     private lateinit var btnExpandMap: com.google.android.material.floatingactionbutton.FloatingActionButton
 
+    // ✅ Variables para la cámara
+    private var currentPhotoUri: Uri? = null
+    private var currentPhotoFile: File? = null
 
     private val selectedImageUris = mutableListOf<Uri>()
     private val TAG = "CreateRoomActivity"
@@ -92,9 +100,9 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
     private val MAX_NOMBRE = 50
     private val MAX_PRECIO = 10
     private val MAX_DESCRIPCION = 300
-    private val MAX_CAPACIDAD = 1  // Solo 1 dígito
+    private val MAX_CAPACIDAD = 1
     private val MAX_IMAGES = 10
-    private val MAX_PERSONAS = 4   // Máximo 4 personas
+    private val MAX_PERSONAS = 4
 
     private val serviciosDisponibles = arrayOf(
         "Agua, luz y gas incluidos",
@@ -108,21 +116,61 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private val serviciosSeleccionados = BooleanArray(serviciosDisponibles.size)
 
+    // ✅ Launcher para galería
     private val pickImagesLauncher = registerForActivityResult(
         ActivityResultContracts.GetMultipleContents()
     ) { uris: List<Uri> ->
         if (uris.isNotEmpty()) {
-            if (uris.size > MAX_IMAGES) {
-                showWarningDialog("Límite de imágenes", "Puedes seleccionar máximo $MAX_IMAGES imágenes. Se tomarán las primeras $MAX_IMAGES.")
-                selectedImageUris.clear()
-                selectedImageUris.addAll(uris.take(MAX_IMAGES))
+            handleSelectedImages(uris)
+        }
+    }
+
+    // ✅ Launcher para cámara
+    private val takePictureLauncher = registerForActivityResult(
+        ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success && currentPhotoUri != null) {
+            // Verificar que no exceda el máximo de imágenes
+            if (selectedImageUris.size >= MAX_IMAGES) {
+                showWarningDialog("Límite alcanzado", "Ya tienes $MAX_IMAGES imágenes seleccionadas")
+                // Eliminar el archivo si no se va a usar
+                currentPhotoFile?.delete()
             } else {
-                selectedImageUris.clear()
-                selectedImageUris.addAll(uris)
+                selectedImageUris.add(currentPhotoUri!!)
+                updateImagePreview()
+                Log.d(TAG, "Foto capturada y agregada: ${currentPhotoUri}")
             }
-            ivPreview.setImageURI(selectedImageUris[0])
-            tvImageCount.text = "${selectedImageUris.size}/$MAX_IMAGES imagen(es) seleccionada(s)"
-            Log.d(TAG, "Imágenes seleccionadas: ${selectedImageUris.size}")
+        } else {
+            // Si falla, eliminar el archivo temporal
+            currentPhotoFile?.delete()
+            Log.w(TAG, "Captura de foto cancelada o fallida")
+        }
+    }
+
+    // ✅ Launcher para permisos de cámara
+    private val cameraPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            Log.d(TAG, "Permiso de cámara concedido")
+            openCamera()
+        } else {
+            Log.w(TAG, "Permiso de cámara denegado")
+            showPermissionDeniedDialog("Cámara", "Sin este permiso no se pueden tomar fotos")
+        }
+    }
+
+    // ✅ Launcher para permisos de almacenamiento (READ_EXTERNAL_STORAGE)
+    private val storagePermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            Log.d(TAG, "Permiso de almacenamiento concedido")
+            openGallery()
+        } else {
+            Log.w(TAG, "Permiso de almacenamiento denegado")
+            // En Android 13+ no se necesita este permiso para la galería
+            openGallery()
         }
     }
 
@@ -135,9 +183,10 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
             getCurrentLocation()
         } else {
             Log.w(TAG, "Permiso de ubicación denegado")
-            showPermissionDeniedDialog()
+            showPermissionDeniedDialog("Ubicación", "Se usará la ubicación predeterminada")
         }
     }
+
     private val fullscreenMapLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -160,8 +209,6 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
             }
         }
     }
-
-
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -205,7 +252,6 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
         bottomNavigation = findViewById(R.id.bottom_nav)
         btnExpandMap = findViewById(R.id.btn_expand_map)
 
-
         // Inicializar contadores
         tvImageCount.text = "0/$MAX_IMAGES imagen(es) seleccionada(s)"
     }
@@ -227,7 +273,6 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
             override fun afterTextChanged(s: Editable?) {}
         })
 
-        // TextWatcher para Precio (sin cambios)
         etPrecio.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
 
@@ -243,7 +288,6 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
             override fun afterTextChanged(s: Editable?) {}
         })
 
-        // TextWatcher para Descripción - SOLO LETRAS
         etDescripcion.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
 
@@ -259,7 +303,6 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
             override fun afterTextChanged(s: Editable?) {}
         })
 
-        // TextWatcher para Capacidad - MÁXIMO 4 PERSONAS
         etCapacidad.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
 
@@ -283,30 +326,185 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
             showServiciosDialog()
         }
 
+        // ✅ Mostrar diálogo para elegir entre Cámara o Galería
         btnAddImage.setOnClickListener {
-            pickImagesLauncher.launch("image/*")
+            showImageSourceDialog()
         }
 
         btnCreate.setOnClickListener {
             createRoom()
         }
 
-        // ✅ Listener para el icono de perfil
         findViewById<ImageView>(R.id.iv_profile).setOnClickListener {
             startActivity(Intent(this, com.roomu.app.ui.profile.ProfileActivity::class.java))
         }
 
-// ✅ Listener para el icono de notificaciones
         findViewById<ImageView>(R.id.iv_notifications).setOnClickListener {
             Toast.makeText(this, "🔔 Notificaciones próximamente", Toast.LENGTH_SHORT).show()
         }
-
 
         btnExpandMap.setOnClickListener {
             val intent = Intent(this, FullscreenMapActivity::class.java)
             intent.putExtra("latitude", currentLocation?.latitude ?: 20.0910)
             intent.putExtra("longitude", currentLocation?.longitude ?: -98.7624)
             fullscreenMapLauncher.launch(intent)
+        }
+    }
+
+    // ✅ Diálogo para elegir entre Cámara o Galería
+    private fun showImageSourceDialog() {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_image_source, null)
+
+        val dialog = AlertDialog.Builder(this)
+            .setView(dialogView)
+            .create()
+
+        // Fondo transparente para mostrar las esquinas redondeadas
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        // Opción: Tomar foto
+        dialogView.findViewById<LinearLayout>(R.id.option_take_photo).setOnClickListener {
+            dialog.dismiss()
+            checkCameraPermissionAndOpen()
+        }
+
+        // Opción: Elegir de galería
+        dialogView.findViewById<LinearLayout>(R.id.option_gallery).setOnClickListener {
+            dialog.dismiss()
+            checkStoragePermissionAndOpenGallery()
+        }
+
+        // Botón cancelar
+        dialogView.findViewById<androidx.appcompat.widget.AppCompatButton>(R.id.btn_cancel).setOnClickListener {
+            dialog.dismiss()
+        }
+
+        dialog.show()
+    }
+
+    // ✅ Verificar permiso de cámara
+    private fun checkCameraPermissionAndOpen() {
+        when {
+            ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.CAMERA
+            ) == PackageManager.PERMISSION_GRANTED -> {
+                openCamera()
+            }
+            shouldShowRequestPermissionRationale(Manifest.permission.CAMERA) -> {
+                showPermissionRationaleDialog(
+                    "Cámara",
+                    "Necesitamos acceso a la cámara para tomar fotos del cuarto"
+                ) {
+                    cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                }
+            }
+            else -> {
+                cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+            }
+        }
+    }
+
+    // ✅ Verificar permiso de almacenamiento (solo para Android 12 o inferior)
+    private fun checkStoragePermissionAndOpenGallery() {
+        // En Android 13+ (API 33+) no se necesita READ_EXTERNAL_STORAGE para la galería
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            openGallery()
+        } else {
+            when {
+                ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.READ_EXTERNAL_STORAGE
+                ) == PackageManager.PERMISSION_GRANTED -> {
+                    openGallery()
+                }
+                shouldShowRequestPermissionRationale(Manifest.permission.READ_EXTERNAL_STORAGE) -> {
+                    showPermissionRationaleDialog(
+                        "Almacenamiento",
+                        "Necesitamos acceso a tu galería para seleccionar fotos"
+                    ) {
+                        storagePermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+                    }
+                }
+                else -> {
+                    storagePermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+                }
+            }
+        }
+    }
+
+    // ✅ Abrir cámara
+    private fun openCamera() {
+        if (selectedImageUris.size >= MAX_IMAGES) {
+            showWarningDialog("Límite alcanzado", "Ya tienes $MAX_IMAGES imágenes seleccionadas")
+            return
+        }
+
+        try {
+            // Crear archivo temporal para la foto
+            val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+            val storageDir = getExternalFilesDir(null)
+            val photoFile = File.createTempFile(
+                "JPEG_${timeStamp}_",
+                ".jpg",
+                storageDir
+            )
+
+            currentPhotoFile = photoFile
+
+            // Obtener URI usando FileProvider
+            val photoUri = FileProvider.getUriForFile(
+                this,
+                "${applicationContext.packageName}.fileprovider",
+                photoFile
+            )
+
+            currentPhotoUri = photoUri
+
+            // Lanzar la cámara con la variable local
+            takePictureLauncher.launch(photoUri)
+            Log.d(TAG, "Cámara abierta, archivo: ${photoFile.absolutePath}")
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al abrir cámara: ${e.message}", e)
+            Toast.makeText(this, "Error al abrir la cámara", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // ✅ Abrir galería
+    private fun openGallery() {
+        val remainingSlots = MAX_IMAGES - selectedImageUris.size
+        if (remainingSlots <= 0) {
+            showWarningDialog("Límite alcanzado", "Ya tienes $MAX_IMAGES imágenes seleccionadas")
+            return
+        }
+
+        pickImagesLauncher.launch("image/*")
+    }
+
+    // ✅ Manejar imágenes seleccionadas de la galería
+    private fun handleSelectedImages(uris: List<Uri>) {
+        val remainingSlots = MAX_IMAGES - selectedImageUris.size
+
+        if (uris.size > remainingSlots) {
+            showWarningDialog(
+                "Límite de imágenes",
+                "Solo puedes agregar $remainingSlots imagen(es) más. Se tomarán las primeras $remainingSlots."
+            )
+            selectedImageUris.addAll(uris.take(remainingSlots))
+        } else {
+            selectedImageUris.addAll(uris)
+        }
+
+        updateImagePreview()
+        Log.d(TAG, "Imágenes agregadas desde galería: ${uris.size}, Total: ${selectedImageUris.size}")
+    }
+
+    // ✅ Actualizar vista previa de imágenes
+    private fun updateImagePreview() {
+        if (selectedImageUris.isNotEmpty()) {
+            ivPreview.setImageURI(selectedImageUris.last())
+            tvImageCount.text = "${selectedImageUris.size}/$MAX_IMAGES imagen(es) seleccionada(s)"
         }
     }
 
@@ -326,10 +524,8 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
                 }
 
                 R.id.nav_rooms -> {
-                    // ✅ CORREGIDO: Cargar cuartos del API antes de navegar
                     lifecycleScope.launch {
                         try {
-                            // Obtener el UID del usuario actual
                             val uid = auth.currentUser?.uid
 
                             if (uid == null) {
@@ -341,14 +537,12 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
                                 return@launch
                             }
 
-                            // Cargar todos los cuartos desde el API
                             val response = roomApiService.getRooms()
 
                             if (response.isSuccessful) {
                                 val apiResponse = response.body()
                                 val allRoomsList = apiResponse?.result ?: emptyList()
 
-                                // Filtrar solo los cuartos del usuario actual
                                 val userRooms = allRoomsList.filter { room ->
                                     room.userId.trim().equals(uid.trim(), ignoreCase = true)
                                 }
@@ -389,7 +583,7 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
 
                 R.id.nav_chat -> {
                     val intent = Intent(this, com.roomu.app.ui.chat.ChatsListActivity::class.java).apply {
-                        putExtra("isRenter", true) // Es renter
+                        putExtra("isRenter", true)
                     }
                     startActivity(intent)
                     true
@@ -504,7 +698,6 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
         val capacidadStr = etCapacidad.text.toString().trim()
         val serviciosStr = getServiciosString()
 
-        // Validación de nombre
         if (nombre.isEmpty()) {
             etNombre.error = "El nombre es requerido"
             etNombre.requestFocus()
@@ -524,7 +717,6 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
             return
         }
 
-        // Validación de precio
         if (precioStr.isEmpty()) {
             etPrecio.error = "El precio es requerido"
             etPrecio.requestFocus()
@@ -546,7 +738,6 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
             return
         }
 
-        // Validación de descripción
         if (descripcion.length > MAX_DESCRIPCION) {
             etDescripcion.error = "La descripción no puede exceder $MAX_DESCRIPCION caracteres"
             etDescripcion.requestFocus()
@@ -554,7 +745,6 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
             return
         }
 
-        // Validación de capacidad
         if (capacidadStr.isEmpty()) {
             etCapacidad.error = "La capacidad es requerida"
             etCapacidad.requestFocus()
@@ -569,20 +759,18 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
             showWarningDialog("Capacidad Inválida", "La capacidad debe ser al menos 1")
             return
         }
-        if (capacidad > 99) {
-            etCapacidad.error = "La capacidad máxima es 4 personas"
+        if (capacidad > MAX_PERSONAS) {
+            etCapacidad.error = "La capacidad máxima es $MAX_PERSONAS personas"
             etCapacidad.requestFocus()
-            showWarningDialog("Capacidad Inválida", "La capacidad máxima es 4 personas")
+            showWarningDialog("Capacidad Inválida", "La capacidad máxima es $MAX_PERSONAS personas")
             return
         }
 
-        // Validación de servicios
         if (serviciosStr.isEmpty()) {
             showWarningDialog("Servicios", "Selecciona al menos un servicio")
             return
         }
 
-        // Validación de imágenes
         if (selectedImageUris.isEmpty()) {
             showWarningDialog("Imágenes", "Debes agregar al menos 1 imagen del cuarto")
             return
@@ -774,7 +962,12 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
                 getCurrentLocation()
             }
             shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_FINE_LOCATION) -> {
-                showPermissionRationaleDialog()
+                showPermissionRationaleDialog(
+                    "Ubicación",
+                    "Esta aplicación necesita acceso a tu ubicación para mostrar cuartos cercanos"
+                ) {
+                    locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+                }
             }
             else -> {
                 locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
@@ -823,27 +1016,31 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
         Toast.makeText(this, "Usando ubicación predeterminada", Toast.LENGTH_SHORT).show()
     }
 
-    private fun showPermissionRationaleDialog() {
+    private fun showPermissionRationaleDialog(title: String, message: String, onAccept: () -> Unit) {
         AlertDialog.Builder(this)
-            .setTitle("Permiso de Ubicación")
-            .setMessage("Esta aplicación necesita acceso a tu ubicación para mostrar cuartos cercanos.")
+            .setTitle("Permiso de $title")
+            .setMessage(message)
             .setPositiveButton("Aceptar") { _, _ ->
-                locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+                onAccept()
             }
             .setNegativeButton("Cancelar") { dialog, _ ->
                 dialog.dismiss()
-                useDefaultLocation()
+                if (title == "Ubicación") {
+                    useDefaultLocation()
+                }
             }
             .show()
     }
 
-    private fun showPermissionDeniedDialog() {
+    private fun showPermissionDeniedDialog(permissionName: String, message: String) {
         AlertDialog.Builder(this)
             .setTitle("Permiso Denegado")
-            .setMessage("Sin acceso a la ubicación, se usará una predeterminada.")
+            .setMessage(message)
             .setPositiveButton("Entendido") { dialog, _ ->
                 dialog.dismiss()
-                useDefaultLocation()
+                if (permissionName == "Ubicación") {
+                    useDefaultLocation()
+                }
             }
             .show()
     }
