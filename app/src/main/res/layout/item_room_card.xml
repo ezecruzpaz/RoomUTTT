@@ -43,17 +43,38 @@
             android:orientation="vertical"
             android:layout_gravity="center_vertical">
 
-            <!-- Nombre del Cuarto -->
-            <TextView
-                android:id="@+id/tv_room_name"
+            <!-- Título con menú de opciones -->
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Sala de Conferencias A"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                android:textColor="#000000"
-                android:maxLines="1"
-                android:ellipsize="end" />
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <!-- Nombre del Cuarto -->
+                <TextView
+                    android:id="@+id/tv_room_name"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Sala de Conferencias A"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="#000000"
+                    android:maxLines="1"
+                    android:ellipsize="end" />
+
+                <!-- Menú de 3 puntos (solo visible para arrendatario) -->
+                <ImageView
+                    android:id="@+id/iv_menu_options"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:padding="2dp"
+                    android:src="@android:drawable/ic_menu_more"
+                    android:contentDescription="Opciones"
+                    android:visibility="gone"
+                    android:background="?attr/selectableItemBackgroundBorderless" />
+
+            </LinearLayout>
 
             <!-- Capacidad -->
             <TextView

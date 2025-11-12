@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item
+        android:id="@+id/action_edit"
+        android:title="Editar cuarto"
+        android:icon="@drawable/ic_edit_menu" />
+
+    <item
+        android:id="@+id/action_toggle_availability"
+        android:title="Marcar como rentado"
+        android:icon="@drawable/ic_toggle_menu" />
+
+    <item
+        android:id="@+id/action_delete"
+        android:title="Eliminar cuarto"
+        android:icon="@drawable/ic_delete_menu" />
+
+</menu>

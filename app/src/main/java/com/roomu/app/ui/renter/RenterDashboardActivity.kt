@@ -3,6 +3,7 @@ package com.roomu.app.ui.renter
 import android.app.Dialog
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.view.Window
@@ -11,8 +12,10 @@ import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import cn.pedant.SweetAlert.SweetAlertDialog
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.chip.Chip
 import com.google.android.material.chip.ChipGroup
@@ -20,15 +23,17 @@ import com.google.firebase.auth.FirebaseAuth
 import com.roomu.app.R
 import com.roomu.app.data.api.RoomApiService
 import com.roomu.app.domain.model.RoomData
+import com.roomu.app.ui.home.adapter.RoomAdapter
 import com.roomu.app.ui.profile.ProfileActivity
-import com.roomu.app.ui.renter.adapter.RenterRoomAdapter
 import com.roomu.app.ui.room.CreateRoomActivity
 import com.roomu.app.ui.room.AllRoomsActivity
+import com.roomu.app.ui.room.EditRoomActivity
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.RequestBody.Companion.toRequestBody
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -37,7 +42,7 @@ class RenterDashboardActivity : AppCompatActivity() {
     @Inject
     lateinit var roomApiService: RoomApiService
 
-    private lateinit var adapter: RenterRoomAdapter
+    private lateinit var adapter: RoomAdapter
     private lateinit var recyclerView: RecyclerView
     private lateinit var tvNoRooms: TextView
     private lateinit var tvOccupiedCount: TextView
@@ -51,6 +56,8 @@ class RenterDashboardActivity : AppCompatActivity() {
     private var allRooms = mutableListOf<RoomData>()
     private var filteredRooms = mutableListOf<RoomData>()
     private var currentFilter: RoomFilter = RoomFilter.ALL
+
+    private val TAG = "RenterDashboard"
 
     enum class RoomFilter {
         ALL, OCCUPIED, AVAILABLE
@@ -86,17 +93,168 @@ class RenterDashboardActivity : AppCompatActivity() {
     private fun setupRecyclerView() {
         recyclerView.layoutManager = LinearLayoutManager(this)
 
-        adapter = RenterRoomAdapter(
-            rooms = filteredRooms,
+        // ✅ Usar RoomAdapter con callbacks para acciones
+        adapter = RoomAdapter(
             onRoomClick = { room ->
                 val intent = Intent(this, com.roomu.app.ui.room.RoomDetailActivity::class.java)
                 intent.putExtra("room_id", room.id)
                 intent.putExtra("allRooms", ArrayList(allRooms))
                 startActivity(intent)
+            },
+            allRooms = allRooms,
+            isRenterView = true, // ✅ Mostrar menú de opciones
+            onEditRoom = { room ->
+                editRoom(room)
+            },
+            onDeleteRoom = { room ->
+                confirmDeleteRoom(room)
+            },
+            onToggleAvailability = { room ->
+                toggleRoomAvailability(room)
             }
         )
 
         recyclerView.adapter = adapter
+    }
+
+    // ✅ Editar cuarto
+    private fun editRoom(room: RoomData) {
+        val intent = Intent(this, EditRoomActivity::class.java)
+        intent.putExtra("room", room)
+        startActivity(intent)
+    }
+
+    // ✅ Confirmar eliminación
+    private fun confirmDeleteRoom(room: RoomData) {
+        SweetAlertDialog(this, SweetAlertDialog.WARNING_TYPE)
+            .setTitleText("¿Eliminar cuarto?")
+            .setContentText("Esta acción no se puede deshacer. Se eliminará ${room.nombre}")
+            .setConfirmText("Sí, eliminar")
+            .setConfirmClickListener { dialog ->
+                dialog.dismissWithAnimation()
+                deleteRoom(room)
+            }
+            .setCancelButton("Cancelar") { dialog ->
+                dialog.dismiss()
+            }
+            .show()
+    }
+
+    // ✅ Eliminar cuarto
+    private fun deleteRoom(room: RoomData) {
+        val progressDialog = SweetAlertDialog(this, SweetAlertDialog.PROGRESS_TYPE).apply {
+            progressHelper.barColor = android.graphics.Color.parseColor("#D32F2F")
+            titleText = "Eliminando"
+            contentText = "Eliminando cuarto..."
+            setCancelable(false)
+            show()
+        }
+
+        lifecycleScope.launch {
+            try {
+                val response = roomApiService.deleteRoom(room.id)
+
+                progressDialog.dismiss()
+
+                if (response.isSuccessful) {
+                    SweetAlertDialog(this@RenterDashboardActivity, SweetAlertDialog.SUCCESS_TYPE).apply {
+                        setTitleText("¡Eliminado!")
+                        setContentText("El cuarto ha sido eliminado correctamente")
+                        setConfirmText("OK")
+                        setConfirmClickListener {
+                            it.dismiss()
+                            loadRooms() // Recargar lista
+                        }
+                        show()
+                    }
+                } else {
+                    SweetAlertDialog(this@RenterDashboardActivity, SweetAlertDialog.ERROR_TYPE).apply {
+                        setTitleText("Error")
+                        setContentText("No se pudo eliminar el cuarto: ${response.code()}")
+                        show()
+                    }
+                }
+            } catch (e: Exception) {
+                progressDialog.dismiss()
+                Log.e(TAG, "Error eliminando cuarto: ${e.message}", e)
+                SweetAlertDialog(this@RenterDashboardActivity, SweetAlertDialog.ERROR_TYPE).apply {
+                    setTitleText("Error de conexión")
+                    setContentText("No se pudo eliminar el cuarto")
+                    show()
+                }
+            }
+        }
+    }
+
+    // ✅ Cambiar disponibilidad
+    private fun toggleRoomAvailability(room: RoomData) {
+        val newStatus = !room.disponible
+        val statusText = if (newStatus) "disponible" else "rentado"
+
+        val progressDialog = SweetAlertDialog(this, SweetAlertDialog.PROGRESS_TYPE).apply {
+            progressHelper.barColor = android.graphics.Color.parseColor("#A5DC86")
+            titleText = "Actualizando"
+            contentText = "Cambiando estado..."
+            setCancelable(false)
+            show()
+        }
+
+        lifecycleScope.launch {
+            try {
+                // Preparar todos los datos del cuarto
+                val nombreBody = room.nombre.toRequestBody("text/plain".toMediaTypeOrNull())
+                val precioBody = room.precio.toString().toRequestBody("text/plain".toMediaTypeOrNull())
+                val descripcionBody = (room.descripcion ?: "").toRequestBody("text/plain".toMediaTypeOrNull())
+                val capacidadBody = room.capacidad.toString().toRequestBody("text/plain".toMediaTypeOrNull())
+                val disponibleBody = newStatus.toString().toRequestBody("text/plain".toMediaTypeOrNull())
+                val serviciosBody = (room.servicios.firstOrNull() ?: "").toRequestBody("text/plain".toMediaTypeOrNull())
+                val ubicacionBody = room.ubicacion.toRequestBody("text/plain".toMediaTypeOrNull())
+                val userIdBody = room.userId.toRequestBody("text/plain".toMediaTypeOrNull())
+
+                val response = roomApiService.updateRoom(
+                    id = room.id,
+                    nombre = nombreBody,
+                    precio = precioBody,
+                    descripcion = descripcionBody,
+                    capacidad = capacidadBody,
+                    disponible = disponibleBody,
+                    servicios = serviciosBody,
+                    ubicacion = ubicacionBody,
+                    userId = userIdBody,
+                    nuevasImagenes = null
+                )
+
+                progressDialog.dismiss()
+
+                if (response.isSuccessful) {
+                    SweetAlertDialog(this@RenterDashboardActivity, SweetAlertDialog.SUCCESS_TYPE).apply {
+                        setTitleText("¡Actualizado!")
+                        setContentText("El cuarto ahora está marcado como $statusText")
+                        setConfirmText("OK")
+                        setConfirmClickListener {
+                            it.dismiss()
+                            loadRooms() // Recargar lista
+                        }
+                        show()
+                    }
+                } else {
+                    Log.e(TAG, "❌ Error ${response.code()}: ${response.errorBody()?.string()}")
+                    SweetAlertDialog(this@RenterDashboardActivity, SweetAlertDialog.ERROR_TYPE).apply {
+                        setTitleText("Error")
+                        setContentText("No se pudo actualizar el estado: ${response.code()}")
+                        show()
+                    }
+                }
+            } catch (e: Exception) {
+                progressDialog.dismiss()
+                Log.e(TAG, "Error actualizando disponibilidad: ${e.message}", e)
+                SweetAlertDialog(this@RenterDashboardActivity, SweetAlertDialog.ERROR_TYPE).apply {
+                    setTitleText("Error de conexión")
+                    setContentText("No se pudo actualizar el estado")
+                    show()
+                }
+            }
+        }
     }
 
     private fun setupListeners() {
@@ -116,12 +274,10 @@ class RenterDashboardActivity : AppCompatActivity() {
             startActivity(Intent(this, CreateRoomActivity::class.java))
         }
 
-        // ✅ NUEVO: Abrir diálogo de filtros
         btnFilters.setOnClickListener {
             showFilterDialog()
         }
 
-        // ✅ BOTTOM NAVIGATION CON CHATS
         bottomNavigation.setOnItemSelectedListener { item ->
             when (item.itemId) {
                 R.id.nav_home -> true
@@ -145,22 +301,18 @@ class RenterDashboardActivity : AppCompatActivity() {
         }
     }
 
-    // ✅ NUEVO: Mostrar diálogo de filtros con chips
     private fun showFilterDialog() {
         val dialog = Dialog(this)
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
         dialog.setContentView(R.layout.dialog_filter_cuartos)
 
-        // Configurar el ancho del diálogo (90% del ancho de pantalla)
         dialog.window?.setLayout(
             (resources.displayMetrics.widthPixels * 0.9).toInt(),
             ViewGroup.LayoutParams.WRAP_CONTENT
         )
 
-        // Hacer el fondo transparente para que se vean las esquinas redondeadas
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
-        // Referencias a las vistas
         val chipGroupStatus = dialog.findViewById<ChipGroup>(R.id.chip_group_status)
         val chipTodos = dialog.findViewById<Chip>(R.id.chip_todos)
         val chipOcupados = dialog.findViewById<Chip>(R.id.chip_ocupados)
@@ -169,24 +321,20 @@ class RenterDashboardActivity : AppCompatActivity() {
         val btnCancel = dialog.findViewById<Button>(R.id.btn_cancel_filter)
         val btnApply = dialog.findViewById<Button>(R.id.btn_apply_filter)
 
-        // Establecer el filtro actual seleccionado
         when(currentFilter) {
             RoomFilter.ALL -> chipTodos.isChecked = true
             RoomFilter.OCCUPIED -> chipOcupados.isChecked = true
             RoomFilter.AVAILABLE -> chipDisponibles.isChecked = true
         }
 
-        // Botón "Limpiar" - vuelve a "Todos"
         tvClearFilters.setOnClickListener {
             chipTodos.isChecked = true
         }
 
-        // Botón Cancelar - cierra el diálogo sin aplicar cambios
         btnCancel.setOnClickListener {
             dialog.dismiss()
         }
 
-        // Botón Aplicar - aplica el filtro seleccionado
         btnApply.setOnClickListener {
             val selectedChipId = chipGroupStatus.checkedChipId
 
@@ -197,20 +345,14 @@ class RenterDashboardActivity : AppCompatActivity() {
                 else -> RoomFilter.ALL
             }
 
-            // Aplicar el filtro a la lista
             applyFilter()
-
-            // Actualizar el texto del botón
             updateFilterButtonText()
-
-            // Cerrar el diálogo
             dialog.dismiss()
         }
 
         dialog.show()
     }
 
-    // ✅ NUEVO: Actualizar texto del botón de filtros
     private fun updateFilterButtonText() {
         val text = when(currentFilter) {
             RoomFilter.ALL -> "Filtros ▼"
@@ -221,7 +363,7 @@ class RenterDashboardActivity : AppCompatActivity() {
     }
 
     private fun showLogoutConfirmationDialog() {
-        cn.pedant.SweetAlert.SweetAlertDialog(this, cn.pedant.SweetAlert.SweetAlertDialog.WARNING_TYPE)
+        SweetAlertDialog(this, SweetAlertDialog.WARNING_TYPE)
             .setTitleText("Cerrar Sesión")
             .setContentText("¿Estás seguro de que deseas cerrar sesión?")
             .setConfirmText("Sí, cerrar")
@@ -237,7 +379,7 @@ class RenterDashboardActivity : AppCompatActivity() {
     }
 
     private fun performLogout() {
-        val loadingDialog = cn.pedant.SweetAlert.SweetAlertDialog(this, cn.pedant.SweetAlert.SweetAlertDialog.PROGRESS_TYPE)
+        val loadingDialog = SweetAlertDialog(this, SweetAlertDialog.PROGRESS_TYPE)
             .setTitleText("Cerrando sesión...")
         loadingDialog.setCancelable(false)
         loadingDialog.show()
@@ -246,7 +388,7 @@ class RenterDashboardActivity : AppCompatActivity() {
             FirebaseAuth.getInstance().signOut()
             loadingDialog.dismissWithAnimation()
 
-            cn.pedant.SweetAlert.SweetAlertDialog(this, cn.pedant.SweetAlert.SweetAlertDialog.SUCCESS_TYPE)
+            SweetAlertDialog(this, SweetAlertDialog.SUCCESS_TYPE)
                 .setTitleText("Sesión cerrada")
                 .setContentText("Has cerrado sesión exitosamente")
                 .setConfirmClickListener { dialog ->
@@ -261,7 +403,7 @@ class RenterDashboardActivity : AppCompatActivity() {
         } catch (e: Exception) {
             loadingDialog.dismissWithAnimation()
 
-            cn.pedant.SweetAlert.SweetAlertDialog(this, cn.pedant.SweetAlert.SweetAlertDialog.ERROR_TYPE)
+            SweetAlertDialog(this, SweetAlertDialog.ERROR_TYPE)
                 .setTitleText("Error")
                 .setContentText("No se pudo cerrar sesión: ${e.message}")
                 .show()
@@ -277,7 +419,7 @@ class RenterDashboardActivity : AppCompatActivity() {
             return
         }
 
-        CoroutineScope(Dispatchers.IO).launch {
+        lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val response = roomApiService.getRooms()
 
@@ -337,7 +479,8 @@ class RenterDashboardActivity : AppCompatActivity() {
             RoomFilter.AVAILABLE -> filteredRooms.addAll(allRooms.filter { it.disponible })
         }
 
-        adapter.notifyDataSetChanged()
+        // ✅ Actualizar lista del adapter
+        adapter.submitList(filteredRooms.toList())
     }
 
     private fun updateStatusCounts() {

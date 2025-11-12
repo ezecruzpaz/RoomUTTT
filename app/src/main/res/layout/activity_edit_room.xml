@@ -1,0 +1,294 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <!-- Header -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="16dp"
+        android:background="#FFFFFF"
+        android:elevation="2dp">
+
+        <TextView
+            android:id="@+id/tv_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:text="Editar Cuarto"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="#000000" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/iv_profile"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_profile"
+                android:layout_marginEnd="16dp"
+                android:contentDescription="Perfil" />
+
+            <ImageView
+                android:id="@+id/iv_notifications"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_notifications"
+                android:contentDescription="Notificaciones" />
+
+        </LinearLayout>
+
+    </RelativeLayout>
+
+    <ScrollView
+        android:id="@+id/scroll_view"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true"
+        android:background="@color/white">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="24dp">
+
+            <!-- Nombre -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="4dp"
+                android:background="@drawable/input_background"
+                app:boxBackgroundMode="none"
+                app:counterEnabled="true"
+                app:counterMaxLength="50"
+                app:hintTextColor="@color/darker_gray">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/et_nombre"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="16dp"
+                    android:textColor="@color/black"
+                    android:hint="Nombre del Cuarto"
+                    android:inputType="textCapWords"
+                    android:maxLength="50" />
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <TextView
+                android:id="@+id/tv_nombre_counter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end"
+                android:layout_marginBottom="16dp"
+                android:text="0/50"
+                android:textSize="12sp"
+                android:textColor="@color/darker_gray" />
+
+            <!-- Precio -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="4dp"
+                android:background="@drawable/input_background"
+                app:boxBackgroundMode="none"
+                app:hintTextColor="@color/darker_gray">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/et_precio"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="16dp"
+                    android:inputType="numberDecimal"
+                    android:textColor="@color/black"
+                    android:hint="Precio (MXN)"
+                    android:maxLength="10" />
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <TextView
+                android:id="@+id/tv_precio_counter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end"
+                android:layout_marginBottom="16dp"
+                android:text="0/10"
+                android:textSize="12sp"
+                android:textColor="@color/darker_gray" />
+
+            <!-- Descripción -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="4dp"
+                android:background="@drawable/input_background"
+                app:boxBackgroundMode="none"
+                app:counterEnabled="true"
+                app:counterMaxLength="300"
+                app:hintTextColor="@color/darker_gray">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/et_descripcion"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="16dp"
+                    android:inputType="textMultiLine"
+                    android:lines="3"
+                    android:textColor="@color/black"
+                    android:hint="Descripción"
+                    android:maxLength="300" />
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <TextView
+                android:id="@+id/tv_descripcion_counter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end"
+                android:layout_marginBottom="16dp"
+                android:text="0/300"
+                android:textSize="12sp"
+                android:textColor="@color/darker_gray" />
+
+            <!-- Capacidad -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="4dp"
+                android:background="@drawable/input_background"
+                app:boxBackgroundMode="none"
+                app:hintTextColor="@color/darker_gray">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/et_capacidad"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="16dp"
+                    android:inputType="number"
+                    android:textColor="@color/black"
+                    android:hint="Capacidad (personas)"
+                    android:maxLength="1"
+                    android:digits="1234" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <TextView
+                android:id="@+id/tv_capacidad_counter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end"
+                android:layout_marginBottom="16dp"
+                android:text="0/1 (máx. 4 personas)"
+                android:textSize="12sp"
+                android:textColor="@color/darker_gray" />
+
+            <!-- Servicios -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:text="Servicios"
+                android:textColor="@color/black"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="2dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?android:attr/selectableItemBackground">
+
+                <TextView
+                    android:id="@+id/tv_servicios_seleccionados"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@color/service_background"
+                    android:text="Seleccionar servicios"
+                    android:textColor="@color/service_text"
+                    android:textSize="16sp"
+                    android:padding="16dp"
+                    android:drawableEnd="@android:drawable/arrow_down_float"
+                    android:drawablePadding="8dp" />
+
+            </androidx.cardview.widget.CardView>
+
+            <!-- Imágenes -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:text="Imágenes del cuarto"
+                android:textColor="@color/black"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/recycler_images"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:minHeight="100dp" />
+
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/btn_add_image"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end"
+                android:layout_marginBottom="16dp"
+                android:contentDescription="Agregar imagen"
+                android:src="@android:drawable/ic_menu_camera"
+                app:tint="@color/white"
+                app:backgroundTint="@color/black" />
+
+            <!-- Botones -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:orientation="horizontal">
+
+                <androidx.appcompat.widget.AppCompatButton
+                    android:id="@+id/btn_cancel"
+                    android:layout_width="0dp"
+                    android:layout_height="56dp"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="8dp"
+                    android:background="@drawable/button_gray"
+                    android:text="Cancelar"
+                    android:textAllCaps="false"
+                    android:textColor="#666666"
+                    android:textSize="16sp" />
+
+                <androidx.appcompat.widget.AppCompatButton
+                    android:id="@+id/btn_update"
+                    android:layout_width="0dp"
+                    android:layout_height="56dp"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    android:background="@drawable/button_black_rounded"
+                    android:text="Actualizar"
+                    android:textAllCaps="false"
+                    android:textColor="@color/white"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+    </ScrollView>
+
+</LinearLayout>

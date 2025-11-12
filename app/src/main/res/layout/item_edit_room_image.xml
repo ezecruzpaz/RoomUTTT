@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="100dp"
+    android:layout_margin="4dp"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="4dp">
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <!-- Imagen -->
+        <ImageView
+            android:id="@+id/iv_image"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop" />
+
+        <!-- Overlay oscuro al hacer hover -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#40000000" />
+
+        <!-- Botón eliminar mejorado -->
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/btn_remove"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end|top"
+            android:layout_margin="8dp"
+            android:src="@android:drawable/ic_menu_close_clear_cancel"
+            app:tint="@color/white"
+            app:backgroundTint="#F44336"
+            app:fabSize="mini"
+            app:elevation="6dp"
+            android:contentDescription="Eliminar imagen" />
+
+    </FrameLayout>
+
+</androidx.cardview.widget.CardView>

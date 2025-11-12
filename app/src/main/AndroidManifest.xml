@@ -86,6 +86,13 @@
             android:name=".ui.room.CreateRoomActivity"
             android:exported="false" />
 
+        <!-- ✅ NUEVA: Actividad Edición Cuarto -->
+        <activity
+            android:name=".ui.room.EditRoomActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.room.AllRoomsActivity"
+            android:theme="@style/Theme.RoomUTTT" />
+
         <!-- Términos y condiciones -->
         <activity
             android:name=".ui.terms.TermsActivity"
