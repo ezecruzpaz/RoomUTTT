@@ -446,60 +446,173 @@ class ProfileActivity : AppCompatActivity() {
         val dialogView = layoutInflater.inflate(R.layout.dialog_edit_profile, null)
         val etName = dialogView.findViewById<EditText>(R.id.et_name)
         val etEmail = dialogView.findViewById<EditText>(R.id.et_email)
+        val etNewPassword = dialogView.findViewById<EditText>(R.id.et_new_password)
+        val etConfirmPassword = dialogView.findViewById<EditText>(R.id.et_confirm_password)
+        val layoutPasswordWarning = dialogView.findViewById<LinearLayout>(R.id.layout_password_warning)
+        val btnCancel = dialogView.findViewById<androidx.appcompat.widget.AppCompatButton>(R.id.btn_cancel)
         val btnUpdate = dialogView.findViewById<androidx.appcompat.widget.AppCompatButton>(R.id.btn_update)
 
+        // Prellenar con datos actuales
         etName.setText(tvName.text)
         etEmail.setText(tvEmail.text)
 
-        // Crear diálogo sin título (ya que el layout tiene su propio título)
+        // Crear diálogo
         val dialog = AlertDialog.Builder(this)
             .setView(dialogView)
             .setCancelable(true)
             .create()
 
-        // Configurar el botón de actualizar
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        // Mostrar advertencia si se está escribiendo contraseña
+        val passwordWatcher = object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                val hasPassword = !etNewPassword.text.isNullOrEmpty() || !etConfirmPassword.text.isNullOrEmpty()
+                layoutPasswordWarning.visibility = if (hasPassword) android.view.View.VISIBLE else android.view.View.GONE
+            }
+            override fun afterTextChanged(s: android.text.Editable?) {}
+        }
+
+        etNewPassword.addTextChangedListener(passwordWatcher)
+        etConfirmPassword.addTextChangedListener(passwordWatcher)
+
+        // Botón Cancelar
+        btnCancel.setOnClickListener {
+            dialog.dismiss()
+        }
+
+        // Botón Actualizar
         btnUpdate.setOnClickListener {
             val newName = etName.text.toString().trim()
             val newEmail = etEmail.text.toString().trim()
+            val newPassword = etNewPassword.text.toString().trim()
+            val confirmPassword = etConfirmPassword.text.toString().trim()
 
-            if (newName.isNotEmpty() && newEmail.isNotEmpty()) {
-                dialog.dismiss()
-
-                // Mostrar progreso
-                val progressDialog = SweetAlertDialog(this, SweetAlertDialog.PROGRESS_TYPE).apply {
-                    progressHelper.barColor = android.graphics.Color.parseColor("#A5DC86")
-                    titleText = "Actualizando"
-                    contentText = "Guardando cambios..."
-                    setCancelable(false)
-                    show()
-                }
-
-                viewModel.updateProfile(newName, newEmail)
-
-                lifecycleScope.launch {
-                    kotlinx.coroutines.delay(1500)
-                    progressDialog.dismiss()
-                    loadUserData()
-
-                    // Mensaje de éxito
-                    SweetAlertDialog(this@ProfileActivity, SweetAlertDialog.SUCCESS_TYPE)
-                        .setTitleText("¡Perfecto!")
-                        .setContentText("Tu perfil ha sido actualizado")
-                        .setConfirmText("OK")
-                        .show()
-                }
-            } else {
+            // Validaciones
+            if (newName.isEmpty()) {
                 SweetAlertDialog(this, SweetAlertDialog.WARNING_TYPE)
-                    .setTitleText("Campos vacíos")
-                    .setContentText("Por favor completa todos los campos")
-                    .setConfirmText("OK")
+                    .setTitleText("Campo requerido")
+                    .setContentText("El nombre no puede estar vacío")
                     .show()
+                return@setOnClickListener
+            }
+
+            if (newEmail.isEmpty()) {
+                SweetAlertDialog(this, SweetAlertDialog.WARNING_TYPE)
+                    .setTitleText("Campo requerido")
+                    .setContentText("El email no puede estar vacío")
+                    .show()
+                return@setOnClickListener
+            }
+
+            if (!android.util.Patterns.EMAIL_ADDRESS.matcher(newEmail).matches()) {
+                SweetAlertDialog(this, SweetAlertDialog.WARNING_TYPE)
+                    .setTitleText("Email inválido")
+                    .setContentText("Por favor ingresa un email válido")
+                    .show()
+                return@setOnClickListener
+            }
+
+            // Validar contraseñas si se están cambiando
+            val isChangingPassword = newPassword.isNotEmpty() || confirmPassword.isNotEmpty()
+
+            if (isChangingPassword) {
+                if (newPassword.length < 6) {
+                    SweetAlertDialog(this, SweetAlertDialog.WARNING_TYPE)
+                        .setTitleText("Contraseña muy corta")
+                        .setContentText("La contraseña debe tener al menos 6 caracteres")
+                        .show()
+                    return@setOnClickListener
+                }
+
+                if (newPassword != confirmPassword) {
+                    SweetAlertDialog(this, SweetAlertDialog.WARNING_TYPE)
+                        .setTitleText("Contraseñas no coinciden")
+                        .setContentText("Las contraseñas deben ser iguales")
+                        .show()
+                    return@setOnClickListener
+                }
+            }
+
+            dialog.dismiss()
+
+            // Mostrar progreso
+            val progressDialog = SweetAlertDialog(this, SweetAlertDialog.PROGRESS_TYPE).apply {
+                progressHelper.barColor = android.graphics.Color.parseColor("#A5DC86")
+                titleText = "Actualizando"
+                contentText = "Guardando cambios..."
+                setCancelable(false)
+                show()
+            }
+
+            lifecycleScope.launch {
+                try {
+                    // Actualizar perfil básico
+                    viewModel.updateProfile(newName, newEmail)
+
+                    // Si se está cambiando contraseña
+                    if (isChangingPassword) {
+                        val result = viewModel.updatePassword(newPassword)
+
+                        progressDialog.dismiss()
+
+                        if (result.isSuccess) {
+                            // Éxito con cambio de contraseña
+                            SweetAlertDialog(this@ProfileActivity, SweetAlertDialog.SUCCESS_TYPE).apply {
+                                setTitleText("¡Perfil actualizado!")
+                                setContentText("Tu contraseña ha sido cambiada. Por seguridad, debes iniciar sesión nuevamente.")
+                                setConfirmText("Iniciar sesión")
+                                setConfirmClickListener { successDialog ->
+                                    successDialog.dismissWithAnimation()
+
+                                    // Cerrar sesión
+                                    auth.signOut()
+
+                                    // Redirigir a Login
+                                    val intent = Intent(this@ProfileActivity, LoginActivity::class.java)
+                                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                                    startActivity(intent)
+                                    finish()
+                                }
+                                setCancelable(false)
+                                show()
+                            }
+                        } else {
+                            // Error al cambiar contraseña
+                            SweetAlertDialog(this@ProfileActivity, SweetAlertDialog.ERROR_TYPE).apply {
+                                setTitleText("Error")
+                                setContentText("No se pudo cambiar la contraseña: ${result.exceptionOrNull()?.message}")
+                                show()
+                            }
+                        }
+                    } else {
+                        // Solo actualización de perfil (sin contraseña)
+                        kotlinx.coroutines.delay(1000)
+                        progressDialog.dismiss()
+                        loadUserData()
+
+                        SweetAlertDialog(this@ProfileActivity, SweetAlertDialog.SUCCESS_TYPE).apply {
+                            setTitleText("¡Perfecto!")
+                            setContentText("Tu perfil ha sido actualizado")
+                            setConfirmText("OK")
+                            show()
+                        }
+                    }
+
+                } catch (e: Exception) {
+                    progressDialog.dismiss()
+                    SweetAlertDialog(this@ProfileActivity, SweetAlertDialog.ERROR_TYPE).apply {
+                        setTitleText("Error")
+                        setContentText("No se pudo actualizar el perfil: ${e.message}")
+                        show()
+                    }
+                }
             }
         }
 
         dialog.show()
     }
-
     private fun setupBottomNavigation() {
         bottomNavigation.selectedItemId = R.id.nav_home
 
@@ -711,9 +824,6 @@ class ProfileActivity : AppCompatActivity() {
             }
         }
     }
-
-
-
 
     override fun onResume() {
         super.onResume()

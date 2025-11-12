@@ -194,4 +194,33 @@ class ProfileViewModel @Inject constructor(
 
         return result
     }
+
+    // Agregar esta función en ProfileViewModel.kt
+
+    suspend fun updatePassword(newPassword: String): Result<Unit> = withContext(Dispatchers.IO) {
+        return@withContext try {
+            val user = auth.currentUser
+                ?: return@withContext Result.failure(Exception("Usuario no autenticado"))
+
+            // Actualizar contraseña en Firebase Authentication
+            user.updatePassword(newPassword).await()
+
+            Log.d(TAG, "✅ Contraseña actualizada exitosamente")
+            Result.success(Unit)
+
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error actualizando contraseña: ${e.message}")
+
+            // Mensajes de error más específicos
+            val errorMessage = when {
+                e.message?.contains("REQUIRES_RECENT_LOGIN", ignoreCase = true) == true ->
+                    "Por seguridad, debes cerrar sesión y volver a iniciar para cambiar tu contraseña"
+                e.message?.contains("WEAK_PASSWORD", ignoreCase = true) == true ->
+                    "La contraseña es muy débil. Usa al menos 6 caracteres"
+                else -> e.message ?: "Error desconocido"
+            }
+
+            Result.failure(Exception(errorMessage))
+        }
+    }
 }
