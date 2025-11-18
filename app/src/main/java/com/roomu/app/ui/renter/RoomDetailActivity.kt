@@ -1,6 +1,8 @@
 package com.roomu.app.ui.room
 
+import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.location.Geocoder
 import android.net.Uri
 import android.os.Bundle
@@ -13,6 +15,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.viewpager2.widget.ViewPager2
 import com.bumptech.glide.Glide
@@ -36,8 +39,12 @@ import com.roomu.app.ui.home.MainActivity
 import com.roomu.app.ui.home.viewmodel.MainViewModel
 import com.roomu.app.ui.profile.ProfileActivity
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.FileOutputStream
 import java.util.Locale
 
 @AndroidEntryPoint
@@ -245,6 +252,9 @@ class RoomDetailActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private fun setupListeners() {
         // ✅ BOTÓN DE REGRESO - Navega según el rol del usuario
+        binding.btnShareContainer.setOnClickListener {
+            shareCurrentRoom()
+        }
         binding.ivBack.setOnClickListener {
             lifecycleScope.launch {
                 val isRenter = checkIfUserIsRenter()
@@ -362,7 +372,111 @@ class RoomDetailActivity : AppCompatActivity(), OnMapReadyCallback {
             }
         }
     }
+    private fun shareCurrentRoom() {
+        room?.let { roomData ->
+            // Reutilizamos casi todo el código del adapter
+            val context = this
 
+            // Obtener nombre legible de ubicación
+            val locationName = getReadableAddress(roomData.ubicacion)
+
+            val shareText = buildString {
+                append("🏠 *${roomData.nombre}*\n\n")
+                append("💰 *Precio:* $${roomData.precio} MXN/mes\n")
+                append("👥 *Capacidad:* ${roomData.capacidad} persona${if (roomData.capacidad > 1) "s" else ""}\n")
+                if (!roomData.descripcion.isNullOrEmpty()) {
+                    append("\n📝 ${roomData.descripcion}\n")
+                }
+                if (roomData.servicios.isNotEmpty()) {
+                    append("\n✨ *Servicios:*\n")
+                    roomData.servicios.forEach { append(" • $it\n") }
+                }
+                if (locationName.isNotEmpty()) {
+                    append("\n📍 *Ubicación:* $locationName\n")
+                }
+                roomData.getLatLng()?.let { (lat, lng) ->
+                    append("\n🗺️ Ver en mapa: https://maps.google.com/?q=$lat,$lng\n")
+                }
+                append("\n━━━━━━━━━━━━━━━━━\n")
+                append("📱 *Descarga RoomU y encuentra tu cuarto ideal*\n")
+                append("🔗 https://roomu.app/download\n")
+                append("\n¡Tu próximo hogar te está esperando! 🏡")
+            }
+
+            if (roomData.imagenes.isNotEmpty()) {
+                shareWithImage(context, roomData, shareText)
+            } else {
+                shareTextOnly(context, shareText)
+            }
+        }
+    }
+
+    private fun shareTextOnly(context: Context, text: String) {
+        val shareIntent = Intent().apply {
+            action = Intent.ACTION_SEND
+            type = "text/plain"
+            putExtra(Intent.EXTRA_SUBJECT, "¡Mira este cuarto en RoomU!")
+            putExtra(Intent.EXTRA_TEXT, text)
+        }
+        startActivity(Intent.createChooser(shareIntent, "Compartir cuarto"))
+    }
+
+    private fun shareWithImage(context: Context, room: RoomData, text: String) {
+        val loadingDialog = cn.pedant.SweetAlert.SweetAlertDialog(context, cn.pedant.SweetAlert.SweetAlertDialog.PROGRESS_TYPE).apply {
+            titleText = "Preparando..."
+            setCancelable(false)
+            show()
+        }
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val imageUrl = room.imagenes.first()
+                val bitmap = Glide.with(context)
+                    .asBitmap()
+                    .load(imageUrl)
+                    .submit()
+                    .get()
+
+                val imageUri = saveImageToCache(context, bitmap, room.nombre)
+
+                withContext(Dispatchers.Main) {
+                    loadingDialog.dismissWithAnimation()
+                    if (imageUri != null) {
+                        val shareIntent = Intent().apply {
+                            action = Intent.ACTION_SEND
+                            type = "image/*"
+                            putExtra(Intent.EXTRA_STREAM, imageUri)
+                            putExtra(Intent.EXTRA_TEXT, text)
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                        startActivity(Intent.createChooser(shareIntent, "Compartir cuarto"))
+                    } else {
+                        shareTextOnly(context, text)
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    loadingDialog.dismissWithAnimation()
+                    shareTextOnly(context, text)
+                    Toast.makeText(context, "Error al compartir imagen", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    private fun saveImageToCache(context: Context, bitmap: Bitmap, roomName: String): Uri? {
+        return try {
+            val imagesFolder = File(context.cacheDir, "shared_images")
+            imagesFolder.mkdirs()
+            val file = File(imagesFolder, "room_${roomName.replace(" ", "_")}.jpg")
+            FileOutputStream(file).use { out ->
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
+            }
+            FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+        } catch (e: Exception) {
+            null
+        }
+    }
     private suspend fun checkIfUserIsRenter(): Boolean {
         return try {
             val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return false

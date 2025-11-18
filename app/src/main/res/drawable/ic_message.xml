@@ -3,7 +3,24 @@
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
+
+    <!-- Contorno del globo de conversación -->
     <path
         android:fillColor="#000000"
-        android:pathData="M20,2H4A2,2 0 0,0 2,4V22L6,18H20A2,2 0 0,0 22,16V4A2,2 0 0,0 20,2M6,9H18V11H6V9M14,14H6V12H14V14Z" />
+        android:pathData="M12,2C6.48,2 2,6.03 2,11c0,1.84 0.63,3.55 1.72,5.02L2,22l5.39,-1.86C8.58,20.7 10.22,21 12,21c5.52,0 10,-4.03 10,-9S17.52,2 12,2zM12,19c-1.61,0 -3.11,-0.32 -4.44,-0.92l-0.31,-0.14L4,19l0.95,-2.85l-0.19,-0.25C4.6,15.48 4,13.96 4,12c0,-4.43 3.86,-8 8,-8s8,3.57 8,8s-3.86,8 -8,8z" />
+
+    <!-- Línea 1 -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M8,9h8v2h-8z" />
+
+    <!-- Línea 2 -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M8,12h8v2h-8z" />
+
+    <!-- Línea 3 -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M8,15h5v2h-5z" />
 </vector>

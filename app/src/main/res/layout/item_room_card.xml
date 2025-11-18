@@ -69,10 +69,11 @@
                     android:layout_width="24dp"
                     android:layout_height="24dp"
                     android:padding="2dp"
-                    android:src="@android:drawable/ic_menu_more"
+                    android:src="@drawable/ic_more_vertical_solid"
                     android:contentDescription="Opciones"
                     android:visibility="gone"
                     android:background="?attr/selectableItemBackgroundBorderless" />
+
 
             </LinearLayout>
 
