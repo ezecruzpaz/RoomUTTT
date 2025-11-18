@@ -32,7 +32,7 @@ class RenterChatsActivity : AppCompatActivity() {
         setupToolbar()
         setupRecyclerView()
         loadChats()
-    }
+    }   
 
     private fun setupToolbar() {
         binding.toolbar.setOnClickListener {

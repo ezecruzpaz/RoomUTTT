@@ -35,7 +35,6 @@ import com.google.android.libraries.places.api.model.Place
 import com.google.android.libraries.places.api.net.FindAutocompletePredictionsRequest
 import com.google.android.libraries.places.api.net.PlacesClient
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
 import com.roomu.app.R
 import com.roomu.app.ui.chat.ChatsListActivity
 import com.roomu.app.ui.home.adapter.RoomAdapter
@@ -45,7 +44,6 @@ import com.roomu.app.ui.room.AllRoomsActivity
 import com.roomu.app.ui.room.RoomDetailActivity
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity(), OnMapReadyCallback {
@@ -69,6 +67,10 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private val TAG = "MainActivity"
     private var googleMap: GoogleMap? = null
     private var locationMessageShown = false
+    private var isFirstLocationAccess = true
+
+    // ✅ Diálogo de carga para búsquedas
+    private var searchLoadingDialog: SweetAlertDialog? = null
 
     private val locationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -83,28 +85,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        // Verificar si el usuario es arrendatario
-        lifecycleScope.launch {
-            val db = FirebaseFirestore.getInstance()
-            val uid = FirebaseAuth.getInstance().currentUser?.uid
-
-            if (uid != null) {
-                try {
-                    val renterDoc = db.collection("renters").document(uid).get().await()
-
-                    if (renterDoc.exists()) {
-                        val intent = Intent(this@MainActivity, com.roomu.app.ui.renter.RenterDashboardActivity::class.java)
-                        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
-                        startActivity(intent)
-                        finish()
-                        return@launch
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error verificando arrendatario: ${e.message}")
-                }
-            }
-        }
 
         setContentView(R.layout.activity_main)
 
@@ -125,8 +105,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         mapFragment.getMapAsync(this)
 
         observeViewModel()
-
-        // ✅ Cargar cuartos solo después de obtener ubicación
         checkAndRequestLocationPermission()
     }
 
@@ -206,7 +184,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             startActivity(Intent(this, ProfileActivity::class.java))
         }
 
-        // ✅ ACTUALIZADO: Abre NotificationsActivity en lugar de ChatsListActivity
         ivNotifications.setOnClickListener {
             val intent = Intent(this, com.roomu.app.ui.notifications.NotificationsActivity::class.java)
             startActivity(intent)
@@ -241,6 +218,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         try {
             FirebaseAuth.getInstance().signOut()
+            isFirstLocationAccess = true
+            locationMessageShown = false
+
             loadingDialog.dismissWithAnimation()
 
             SweetAlertDialog(this, SweetAlertDialog.SUCCESS_TYPE)
@@ -266,7 +246,26 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
+    // ✅ Mostrar loading durante búsqueda
+    private fun showSearchLoading() {
+        dismissSearchLoading() // Cerrar cualquier diálogo previo
+        searchLoadingDialog = SweetAlertDialog(this, SweetAlertDialog.PROGRESS_TYPE)
+            .setTitleText("Buscando ubicación...")
+            .setContentText("Por favor espera")
+        searchLoadingDialog?.setCancelable(false)
+        searchLoadingDialog?.show()
+    }
+
+    // ✅ Cerrar loading de búsqueda
+    private fun dismissSearchLoading() {
+        searchLoadingDialog?.dismissWithAnimation()
+        searchLoadingDialog = null
+    }
+
     private fun searchPlaceAndRooms(query: String) {
+        // ✅ Mostrar loading
+        showSearchLoading()
+
         sessionToken = AutocompleteSessionToken.newInstance()
 
         val request = FindAutocompletePredictionsRequest.builder()
@@ -282,6 +281,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                     val firstPrediction = predictions[0]
                     fetchPlaceDetails(firstPrediction.placeId, query)
                 } else {
+                    // ✅ Cerrar loading antes de mostrar mensaje
+                    dismissSearchLoading()
+
                     viewModel.searchRooms(query)
 
                     SweetAlertDialog(this, SweetAlertDialog.WARNING_TYPE)
@@ -291,8 +293,16 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 }
             }
             .addOnFailureListener { exception ->
+                // ✅ Cerrar loading en caso de error
+                dismissSearchLoading()
+
                 Log.e(TAG, "Error en búsqueda: ${exception.message}")
                 viewModel.searchRooms(query)
+
+                SweetAlertDialog(this, SweetAlertDialog.ERROR_TYPE)
+                    .setTitleText("Error")
+                    .setContentText("Error al buscar: ${exception.message}")
+                    .show()
             }
     }
 
@@ -305,6 +315,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         placesClient.fetchPlace(request)
             .addOnSuccessListener { response ->
+                // ✅ Cerrar loading
+                dismissSearchLoading()
+
                 val place = response.place
                 place.latLng?.let { latLng ->
                     viewModel.updateLocationAndFilter(latLng.latitude, latLng.longitude)
@@ -322,8 +335,16 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 }
             }
             .addOnFailureListener { exception ->
+                // ✅ Cerrar loading en caso de error
+                dismissSearchLoading()
+
                 Log.e(TAG, "Error obteniendo detalles: ${exception.message}")
                 viewModel.searchRooms(originalQuery)
+
+                SweetAlertDialog(this, SweetAlertDialog.ERROR_TYPE)
+                    .setTitleText("Error")
+                    .setContentText("Error al obtener detalles del lugar")
+                    .show()
             }
     }
 
@@ -359,7 +380,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
-    // ✅ NUEVO: Click en cuarto abre detalles directamente
     private fun observeViewModel() {
         lifecycleScope.launch {
             launch {
@@ -381,13 +401,11 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
                         roomAdapter = RoomAdapter(
                             onRoomClick = { room ->
-                                // ✅ CAMBIADO: Abrir detalles directamente, sin Toast
                                 val intent = Intent(this@MainActivity, RoomDetailActivity::class.java)
                                 intent.putExtra("room_id", room.id)
                                 intent.putExtra("allRooms", ArrayList(allRooms))
                                 startActivity(intent)
 
-                                // ✅ También centrar en el mapa (opcional)
                                 room.getLatLng()?.let { (lat, lng) ->
                                     googleMap?.animateCamera(
                                         CameraUpdateFactory.newLatLngZoom(LatLng(lat, lng), 15f)
@@ -467,7 +485,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                         )
                     )
 
-                    if (!locationMessageShown) {
+                    if (isFirstLocationAccess && !locationMessageShown) {
                         locationMessageShown = true
                         SweetAlertDialog(this, SweetAlertDialog.SUCCESS_TYPE)
                             .setTitleText("Ubicación obtenida")
@@ -475,7 +493,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                             .show()
                     }
 
-                    // ✅ CARGAR CUARTOS SOLO DESPUÉS DE OBTENER UBICACIÓN
                     viewModel.loadRooms()
                 } else {
                     Log.w(TAG, "⚠️ Ubicación null")
@@ -500,7 +517,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             CameraUpdateFactory.newLatLngZoom(LatLng(defaultLat, defaultLng), 11f)
         )
 
-        if (!locationMessageShown) {
+        if (isFirstLocationAccess && !locationMessageShown) {
             locationMessageShown = true
             SweetAlertDialog(this)
                 .setTitleText("Ubicación predeterminada")
@@ -508,7 +525,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 .show()
         }
 
-        // ✅ CARGAR CUARTOS DESPUÉS DE ESTABLECER UBICACIÓN PREDETERMINADA
         viewModel.loadRooms()
     }
 
@@ -541,13 +557,20 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         super.onResume()
         bottomNavigation.selectedItemId = R.id.nav_home
 
+        isFirstLocationAccess = false
+
         if (hasLocationPermission() && googleMap != null) {
             enableMyLocation()
         }
 
-        // ✅ Solo recargar si ya tenemos ubicación
         if (viewModel.currentLocation.value != null) {
             viewModel.loadRooms()
         }
+    }
+
+    // ✅ Cerrar loading si la actividad se destruye
+    override fun onDestroy() {
+        super.onDestroy()
+        dismissSearchLoading()
     }
 }

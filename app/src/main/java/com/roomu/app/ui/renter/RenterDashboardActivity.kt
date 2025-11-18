@@ -362,6 +362,8 @@ class RenterDashboardActivity : AppCompatActivity() {
         btnFilters.text = text
     }
 
+    // ✅ Agregar estas funciones en RenterDashboardActivity.kt
+
     private fun showLogoutConfirmationDialog() {
         SweetAlertDialog(this, SweetAlertDialog.WARNING_TYPE)
             .setTitleText("Cerrar Sesión")
@@ -385,6 +387,7 @@ class RenterDashboardActivity : AppCompatActivity() {
         loadingDialog.show()
 
         try {
+            // ✅ Cerrar sesión de Firebase
             FirebaseAuth.getInstance().signOut()
             loadingDialog.dismissWithAnimation()
 
@@ -394,12 +397,14 @@ class RenterDashboardActivity : AppCompatActivity() {
                 .setConfirmClickListener { dialog ->
                     dialog.dismissWithAnimation()
 
+                    // ✅ Ir directamente a LoginActivity
                     val intent = Intent(this, com.roomu.app.ui.auth.LoginActivity::class.java)
                     intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
                     startActivity(intent)
                     finish()
                 }
                 .show()
+
         } catch (e: Exception) {
             loadingDialog.dismissWithAnimation()
 
@@ -409,6 +414,12 @@ class RenterDashboardActivity : AppCompatActivity() {
                 .show()
         }
     }
+
+// ✅ En el onCreate() o donde tengas el botón de logout, cambia a:
+// ivLogout.setOnClickListener {
+//     showLogoutConfirmationDialog()
+// }
+
 
     private fun loadRooms() {
         val user = FirebaseAuth.getInstance().currentUser
@@ -502,4 +513,5 @@ class RenterDashboardActivity : AppCompatActivity() {
         tvNoRooms.visibility = View.GONE
         recyclerView.visibility = View.VISIBLE
     }
+
 }

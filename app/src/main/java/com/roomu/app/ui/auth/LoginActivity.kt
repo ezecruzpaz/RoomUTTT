@@ -1,6 +1,5 @@
 package com.roomu.app.ui.auth
 
-
 import android.content.Intent
 import android.os.Bundle
 import android.text.TextUtils
@@ -43,11 +42,19 @@ class LoginActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_login)
-
-        Log.d(TAG, "onCreate iniciado")
 
         auth = FirebaseAuth.getInstance()
+
+        // ✅ VERIFICACIÓN INVISIBLE - Si hay sesión, redirigir INMEDIATAMENTE
+        if (auth.currentUser != null) {
+            Log.d(TAG, "⚡ Usuario ya autenticado, redirigiendo instantáneamente...")
+            checkRenterRoleAndNavigateQuickly()
+            return
+        }
+
+        // Solo si NO hay sesión, mostrar UI de login
+        setContentView(R.layout.activity_login)
+        Log.d(TAG, "📱 Mostrando pantalla de login")
 
         // Inicializar vistas
         etEmail = findViewById(R.id.et_email)
@@ -63,7 +70,7 @@ class LoginActivity : AppCompatActivity() {
 
         googleSignInClient = GoogleSignIn.getClient(this, gso)
 
-// Botón de Google
+        // Botón de Google
         val btnGoogleLogin = findViewById<ImageView>(R.id.btn_google_login)
         btnGoogleLogin.setOnClickListener {
             Log.d(TAG, "Botón Google clicado")
@@ -75,12 +82,12 @@ class LoginActivity : AppCompatActivity() {
                 }
             }
         }
+
         // Login con Email/Password
         btnLogin.setOnClickListener {
             val email = etEmail.text.toString().trim()
             val password = etPassword.text.toString().trim()
 
-            // Validación
             if (!validateLoginInput(email, password)) {
                 return@setOnClickListener
             }
@@ -97,7 +104,6 @@ class LoginActivity : AppCompatActivity() {
         }
 
         // Observa estado del ViewModel
-        // Observa estado del ViewModel
         lifecycleScope.launch {
             viewModel.loginState.collect { result ->
                 Log.d(TAG, "loginState emitido: $result")
@@ -105,9 +111,8 @@ class LoginActivity : AppCompatActivity() {
                     dismissProgressDialog()
 
                     if (it.isSuccess == true) {
-                        Log.d(TAG, "Login exitoso - Mostrando mensaje de éxito")
+                        Log.d(TAG, "Login exitoso - Verificando rol...")
 
-                        // 🎉 MENSAJE DE ÉXITO ANTES DE NAVEGAR
                         val userName = auth.currentUser?.displayName
                             ?: auth.currentUser?.email?.substringBefore("@")
                             ?: "usuario"
@@ -116,13 +121,10 @@ class LoginActivity : AppCompatActivity() {
                             "¡Bienvenido!",
                             "Inicio de sesión exitoso\n¡Hola $userName!"
                         ) {
-                            // ✅ MOSTRAR LOADING MIENTRAS SE VERIFICA ROL
-                            showProgressDialog("Cargando información..")
-
-                            // Pequeño delay para que se vea el loading
+                            showProgressDialog("Cargando información...")
                             lifecycleScope.launch {
-                                kotlinx.coroutines.delay(1000) // Medio segundo
-                                checkRenterRole()
+                                kotlinx.coroutines.delay(500)
+                                checkRenterRoleAndNavigate()
                             }
                         }
                     } else if (it.isFailure == true) {
@@ -135,37 +137,70 @@ class LoginActivity : AppCompatActivity() {
         }
     }
 
-    private fun checkRenterRole() {
+    // ✅ NUEVA: Navegación rápida sin diálogos (para sesión existente)
+    private fun checkRenterRoleAndNavigateQuickly() {
         val user = auth.currentUser
         user?.uid?.let { uid ->
             firestore.collection("renters")
                 .document(uid)
                 .get()
                 .addOnSuccessListener { document ->
-                    // ✅ CERRAR LOADING ANTES DE NAVEGAR
+                    val intent = if (document.exists()) {
+                        Log.d(TAG, "👤 Arrendatario - Navegando a RenterDashboard")
+                        Intent(this, RenterDashboardActivity::class.java)
+                    } else {
+                        Log.d(TAG, "👤 Cliente - Navegando a MainActivity")
+                        Intent(this, MainActivity::class.java)
+                    }
+
+                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                    startActivity(intent)
+                    finish()
+                }
+                .addOnFailureListener { e ->
+                    Log.e(TAG, "Error verificando rol: ${e.message}")
+                    // Por defecto, ir a MainActivity
+                    val intent = Intent(this, MainActivity::class.java)
+                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                    startActivity(intent)
+                    finish()
+                }
+        } ?: finish()
+    }
+
+    // ✅ Navegación con diálogos (para login nuevo)
+    private fun checkRenterRoleAndNavigate() {
+        val user = auth.currentUser
+        user?.uid?.let { uid ->
+            firestore.collection("renters")
+                .document(uid)
+                .get()
+                .addOnSuccessListener { document ->
                     dismissProgressDialog()
 
-                    if (document.exists()) {
+                    val intent = if (document.exists()) {
                         Log.d(TAG, "Usuario es arrendatario - Navegando a RenterDashboardActivity")
-                        startActivity(Intent(this, RenterDashboardActivity::class.java))
+                        Intent(this, RenterDashboardActivity::class.java)
                     } else {
                         Log.d(TAG, "Usuario no es arrendatario - Navegando a MainActivity")
-                        startActivity(Intent(this, MainActivity::class.java))
+                        Intent(this, MainActivity::class.java)
                     }
+
+                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                    startActivity(intent)
                     finish()
                 }
                 .addOnFailureListener { e ->
                     Log.e(TAG, "Error al verificar rol de arrendatario: ${e.message}")
-
-                    // ✅ CERRAR LOADING INCLUSO EN ERROR
                     dismissProgressDialog()
 
                     // En caso de error, asumimos que no es arrendatario por seguridad
-                    startActivity(Intent(this, MainActivity::class.java))
+                    val intent = Intent(this, MainActivity::class.java)
+                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                    startActivity(intent)
                     finish()
                 }
         } ?: run {
-            // ✅ Si no hay usuario, cerrar loading
             dismissProgressDialog()
         }
     }
