@@ -64,37 +64,50 @@ class RoomDetailActivity : AppCompatActivity(), OnMapReadyCallback {
         binding = ActivityRoomDetailBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        val roomId = intent.getStringExtra("room_id")
-        val allRooms = intent.getSerializableExtra("allRooms") as? ArrayList<RoomData>
+        try {
+            val roomId = intent.getStringExtra("room_id")
+            val allRooms = intent.getSerializableExtra("allRooms") as? ArrayList<RoomData>
 
-        if (roomId == null || allRooms == null) {
-            finish()
-            return
-        }
-        room = allRooms.find { it.id == roomId }
-        if (room == null) {
-            finish()
-            return
-        }
-
-        // ✅ OBTENER NOMBRE DEL ARRENDATARIO
-        lifecycleScope.launch {
-            room?.let {
-                fetchRenterName(it)
+            if (roomId == null) {
+                finish()
+                return
             }
-        }
 
-        setupMap()
-        setupData()
-        setupListeners()
-        setupBottomNavigation()
-
-        // Cargar cuartos (opcional)
-        lifecycleScope.launch {
-            try {
-                mainViewModel.loadRooms()
-            } catch (e: Exception) {
+            if (allRooms == null || allRooms.isEmpty()) {
+                finish()
+                return
             }
+
+            room = allRooms.find { it.id == roomId }
+
+            if (room == null) {
+                finish()
+                return
+            }
+
+
+            // ✅ OBTENER NOMBRE DEL ARRENDATARIO
+            lifecycleScope.launch {
+                room?.let {
+                    fetchRenterName(it)
+                }
+            }
+
+            setupMap()
+            setupData()
+            setupListeners()
+            setupBottomNavigation()
+
+            // Cargar cuartos (opcional)
+            lifecycleScope.launch {
+                try {
+                    mainViewModel.loadRooms()
+                } catch (e: Exception) {
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            finish()
         }
     }
 

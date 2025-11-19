@@ -21,10 +21,10 @@ import com.roomu.app.ui.room.RoomDetailActivity
 class RoomAdapter(
     private val onRoomClick: (RoomData) -> Unit,
     private val allRooms: List<RoomData> = emptyList(),
-    private val isRenterView: Boolean = false, // ✅ Nuevo: indica si es vista de arrendatario
-    private val onEditRoom: ((RoomData) -> Unit)? = null, // ✅ Callback para editar
-    private val onDeleteRoom: ((RoomData) -> Unit)? = null, // ✅ Callback para eliminar
-    private val onToggleAvailability: ((RoomData) -> Unit)? = null // ✅ Callback para cambiar disponibilidad
+    private val isRenterView: Boolean = false,
+    private val onEditRoom: ((RoomData) -> Unit)? = null,
+    private val onDeleteRoom: ((RoomData) -> Unit)? = null,
+    private val onToggleAvailability: ((RoomData) -> Unit)? = null
 ) : ListAdapter<RoomData, RoomAdapter.RoomViewHolder>(RoomDiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RoomViewHolder {
@@ -69,7 +69,7 @@ class RoomAdapter(
             tvRoomCapacity.text = "Capacidad: ${room.capacidad} personas"
             tvRoomDescription.text = room.descripcion ?: "Sin descripción"
 
-            // ✅ Mostrar estado de disponibilidad
+            // Mostrar estado de disponibilidad
             if (!room.disponible) {
                 tvRoomName.text = "${room.nombre} (Rentado)"
                 tvRoomName.setTextColor(itemView.context.getColor(android.R.color.holo_red_dark))
@@ -88,30 +88,40 @@ class RoomAdapter(
                 ivRoomImage.setImageResource(R.drawable.room_placeholder)
             }
 
+            // Click en el card completo
             itemView.setOnClickListener {
                 onRoomClick(room)
             }
 
-            btnReserve.setOnClickListener {
-                val context = itemView.context
-                val intent = Intent(context, RoomDetailActivity::class.java)
-                intent.putExtra("room_id", room.id)
-                intent.putExtra("allRooms", ArrayList(allRooms))
-                context.startActivity(intent)
+            // ✅ CORRECCIÓN: Evitar propagación del evento al card
+            btnReserve.setOnClickListener { view ->
+                try {
+                    val context = itemView.context
+                    val intent = Intent(context, RoomDetailActivity::class.java)
+                    intent.putExtra("room_id", room.id)
+                    intent.putExtra("allRooms", ArrayList(allRooms))
+                    context.startActivity(intent)
+                } catch (e: Exception) {
+                    android.util.Log.e("RoomAdapter", "Error al abrir detalles: ${e.message}", e)
+                    android.widget.Toast.makeText(
+                        itemView.context,
+                        "Error al abrir detalles del cuarto",
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                }
             }
 
-            // ✅ Mostrar u ocultar menú de opciones
+            // Mostrar u ocultar menú de opciones
             if (isRenterView && isOwner(room)) {
                 ivMenuOptions.visibility = View.VISIBLE
-                ivMenuOptions.setOnClickListener {
-                    showPopupMenu(it, room)
+                ivMenuOptions.setOnClickListener { view ->
+                    showPopupMenu(view, room)
                 }
             } else {
                 ivMenuOptions.visibility = View.GONE
             }
         }
 
-        // ✅ Función isOwner actualizada
         private fun isOwner(room: RoomData): Boolean {
             val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
             return currentUserId == room.userId
@@ -128,7 +138,7 @@ class RoomAdapter(
             val toggleItem = popup.menu.findItem(R.id.action_toggle_availability)
             toggleItem?.title = if (room.disponible) "Marcar como rentado" else "Marcar como disponible"
 
-            // FORZAR MOSTRAR ICONOS (REFLEXIÓN)
+            // Forzar mostrar iconos
             try {
                 val popupField = PopupMenu::class.java.getDeclaredField("mPopup")
                 popupField.isAccessible = true

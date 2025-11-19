@@ -93,16 +93,21 @@ class RenterDashboardActivity : AppCompatActivity() {
     private fun setupRecyclerView() {
         recyclerView.layoutManager = LinearLayoutManager(this)
 
-        // ✅ Usar RoomAdapter con callbacks para acciones
         adapter = RoomAdapter(
             onRoomClick = { room ->
-                val intent = Intent(this, com.roomu.app.ui.room.RoomDetailActivity::class.java)
-                intent.putExtra("room_id", room.id)
-                intent.putExtra("allRooms", ArrayList(allRooms))
-                startActivity(intent)
+                try {
+                    val intent = Intent(this, com.roomu.app.ui.room.RoomDetailActivity::class.java)
+                    intent.putExtra("room_id", room.id)
+                    // ✅ Asegurarnos de pasar ArrayList correctamente
+                    intent.putExtra("allRooms", ArrayList(allRooms))
+                    startActivity(intent)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error al abrir detalles: ${e.message}", e)
+                    Toast.makeText(this, "Error al abrir detalles", Toast.LENGTH_SHORT).show()
+                }
             },
             allRooms = allRooms,
-            isRenterView = true, // ✅ Mostrar menú de opciones
+            isRenterView = true,
             onEditRoom = { room ->
                 editRoom(room)
             },
@@ -116,7 +121,27 @@ class RenterDashboardActivity : AppCompatActivity() {
 
         recyclerView.adapter = adapter
     }
-
+    private fun refreshAdapter() {
+        adapter = RoomAdapter(
+            onRoomClick = { room ->
+                try {
+                    val intent = Intent(this, com.roomu.app.ui.room.RoomDetailActivity::class.java)
+                    intent.putExtra("room_id", room.id)
+                    intent.putExtra("allRooms", ArrayList(allRooms))
+                    startActivity(intent)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error al abrir detalles: ${e.message}", e)
+                    Toast.makeText(this, "Error al abrir detalles", Toast.LENGTH_SHORT).show()
+                }
+            },
+            allRooms = allRooms,
+            isRenterView = true,
+            onEditRoom = { room -> editRoom(room) },
+            onDeleteRoom = { room -> confirmDeleteRoom(room) },
+            onToggleAvailability = { room -> toggleRoomAvailability(room) }
+        )
+        recyclerView.adapter = adapter
+    }
     // ✅ Editar cuarto
     private fun editRoom(room: RoomData) {
         val intent = Intent(this, EditRoomActivity::class.java)
@@ -414,13 +439,6 @@ class RenterDashboardActivity : AppCompatActivity() {
                 .show()
         }
     }
-
-// ✅ En el onCreate() o donde tengas el botón de logout, cambia a:
-// ivLogout.setOnClickListener {
-//     showLogoutConfirmationDialog()
-// }
-
-
     private fun loadRooms() {
         val user = FirebaseAuth.getInstance().currentUser
         val uid = user?.uid
@@ -480,7 +498,6 @@ class RenterDashboardActivity : AppCompatActivity() {
             }
         }
     }
-
     private fun applyFilter() {
         filteredRooms.clear()
 
@@ -492,6 +509,14 @@ class RenterDashboardActivity : AppCompatActivity() {
 
         // ✅ Actualizar lista del adapter
         adapter.submitList(filteredRooms.toList())
+
+        // ✅ IMPORTANTE: Actualizar también la lista interna del adapter
+        try {
+            // Refrescar el adapter con la nueva lista filtrada
+            refreshAdapter()
+            adapter.submitList(filteredRooms.toList())
+        } catch (e: Exception) {
+        }
     }
 
     private fun updateStatusCounts() {
