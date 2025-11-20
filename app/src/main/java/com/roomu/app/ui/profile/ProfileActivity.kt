@@ -10,6 +10,7 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
 import android.util.Log
+import android.view.LayoutInflater
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageView
@@ -43,6 +44,7 @@ class ProfileActivity : AppCompatActivity() {
     private val viewModel: ProfileViewModel by viewModels()
     private lateinit var auth: FirebaseAuth
     private lateinit var bottomNavigation: BottomNavigationView
+    private var hasInappropriateName = false
 
     // ✅ ViewModel compartido para obtener los cuartos
     private val mainViewModel: com.roomu.app.ui.home.viewmodel.MainViewModel by viewModels()
@@ -120,6 +122,9 @@ class ProfileActivity : AppCompatActivity() {
         setupListeners()
         setupBottomNavigation()
         loadUserData()
+
+        // ✅ Verificar si el usuario tiene nombre inapropiado
+        checkForInappropriateName()
 
         // ✅ Cargar cuartos - la ubicación ya se cargó en el init del ViewModel
         lifecycleScope.launch {
@@ -263,6 +268,53 @@ class ProfileActivity : AppCompatActivity() {
         btnDeleteProfile.setOnClickListener {
             showDeleteDialog()
         }
+    }
+    // ✅ Nueva función para verificar nombre inapropiado
+    private fun checkForInappropriateName() {
+        lifecycleScope.launch {
+            viewModel.userProfile.collect { user ->
+                if (user != null && user.name != null) {
+                    // Verificar si el nombre contiene XXX (censurado) o tiene contenido inapropiado
+                    if (user.name.contains("XXX", ignoreCase = true) ||
+                        user.name.contains("***") ||
+                        com.roomu.app.utils.ProfanityFilter.containsInappropriateLanguage(user.name)) {
+                        hasInappropriateName = true
+                        showNameUpdateWarning()
+                    }
+                }
+            }
+        }
+    }
+    // ✅ Mostrar advertencia de actualización de nombre
+    private fun showNameUpdateWarning() {
+        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_custom_warning, null)
+
+        val dialog = AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setCancelable(false)
+            .create()
+
+        // Configurar el fondo blanco
+        dialog.window?.setBackgroundDrawableResource(android.R.color.white)
+
+        val tvTitle = dialogView.findViewById<TextView>(R.id.tv_title)
+        val tvMessage = dialogView.findViewById<TextView>(R.id.tv_message)
+        val btnUpdate = dialogView.findViewById<Button>(R.id.btn_update)
+        val btnLater = dialogView.findViewById<Button>(R.id.btn_later)
+
+        tvTitle.text = "⚠️ Actualiza tu nombre"
+        tvMessage.text = "Tu nombre contiene contenido inapropiado que fue censurado o detectado. Por favor actualiza tu perfil con un nombre apropiado para continuar usando la aplicación correctamente."
+
+        btnUpdate.setOnClickListener {
+            dialog.dismiss()
+            showEditDialog()
+        }
+
+        btnLater.setOnClickListener {
+            dialog.dismiss()
+        }
+
+        dialog.show()
     }
 
     private fun showImageSourceDialog() {
@@ -456,10 +508,17 @@ class ProfileActivity : AppCompatActivity() {
         etName.setText(tvName.text)
         etEmail.setText(tvEmail.text)
 
+        // ✅ Si tiene nombre inapropiado, limpiar el campo y deshabilitar cancelar
+        if (hasInappropriateName) {
+            etName.setText("")
+            etName.hint = "Ingresa un nuevo nombre apropiado"
+            etName.error = "Tu nombre actual contiene contenido inapropiado"
+        }
+
         // Crear diálogo
         val dialog = AlertDialog.Builder(this)
             .setView(dialogView)
-            .setCancelable(true)
+            .setCancelable(!hasInappropriateName) // ✅ No cancelable si tiene nombre inapropiado
             .create()
 
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
@@ -479,7 +538,16 @@ class ProfileActivity : AppCompatActivity() {
 
         // Botón Cancelar
         btnCancel.setOnClickListener {
-            dialog.dismiss()
+            // ✅ Si tiene nombre inapropiado, no permitir cancelar
+            if (hasInappropriateName) {
+                SweetAlertDialog(this, SweetAlertDialog.WARNING_TYPE)
+                    .setTitleText("Actualización requerida")
+                    .setContentText("Debes actualizar tu nombre con contenido apropiado antes de continuar")
+                    .setConfirmText("OK")
+                    .show()
+            } else {
+                dialog.dismiss()
+            }
         }
 
         // Botón Actualizar
@@ -494,6 +562,35 @@ class ProfileActivity : AppCompatActivity() {
                 SweetAlertDialog(this, SweetAlertDialog.WARNING_TYPE)
                     .setTitleText("Campo requerido")
                     .setContentText("El nombre no puede estar vacío")
+                    .show()
+                return@setOnClickListener
+            }
+
+            // ✅ Validar longitud mínima
+            if (newName.length < 3) {
+                SweetAlertDialog(this, SweetAlertDialog.WARNING_TYPE)
+                    .setTitleText("Nombre muy corto")
+                    .setContentText("El nombre debe tener al menos 3 caracteres")
+                    .show()
+                return@setOnClickListener
+            }
+
+            // ✅ VALIDAR LENGUAJE INAPROPIADO
+            if (com.roomu.app.utils.ProfanityFilter.containsInappropriateLanguage(newName)) {
+                SweetAlertDialog(this, SweetAlertDialog.ERROR_TYPE)
+                    .setTitleText("❌ Lenguaje inapropiado")
+                    .setContentText("Por favor usa un nombre apropiado. No se permiten palabras ofensivas, vulgares o inapropiadas.")
+                    .setConfirmText("Entendido")
+                    .show()
+                return@setOnClickListener
+            }
+
+            // ✅ Validar que solo contenga letras y espacios
+            if (!newName.matches(Regex("^[a-zA-ZáéíóúÁÉÍÓÚñÑ ]+$"))) {
+                SweetAlertDialog(this, SweetAlertDialog.WARNING_TYPE)
+                    .setTitleText("Formato inválido")
+                    .setContentText("El nombre solo puede contener letras y espacios. No se permiten números ni símbolos.")
+                    .setConfirmText("OK")
                     .show()
                 return@setOnClickListener
             }
@@ -590,11 +687,15 @@ class ProfileActivity : AppCompatActivity() {
                         // Solo actualización de perfil (sin contraseña)
                         kotlinx.coroutines.delay(1000)
                         progressDialog.dismiss()
+
+                        // ✅ Marcar que ya no tiene nombre inapropiado
+                        hasInappropriateName = false
+
                         loadUserData()
 
                         SweetAlertDialog(this@ProfileActivity, SweetAlertDialog.SUCCESS_TYPE).apply {
                             setTitleText("¡Perfecto!")
-                            setContentText("Tu perfil ha sido actualizado")
+                            setContentText("Tu perfil ha sido actualizado correctamente")
                             setConfirmText("OK")
                             show()
                         }

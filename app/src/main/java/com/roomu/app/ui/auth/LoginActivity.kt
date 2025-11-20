@@ -23,14 +23,19 @@ import kotlinx.coroutines.launch
 import cn.pedant.SweetAlert.SweetAlertDialog
 import com.roomu.app.R
 import com.roomu.app.ui.auth.viewmodel.LoginViewModel
+import com.roomu.app.ui.auth.viewmodel.RegisterViewModel
 import com.roomu.app.ui.home.MainActivity
 import com.roomu.app.ui.renter.RenterDashboardActivity
+import com.roomu.app.ui.profile.ProfileActivity
 import com.datadog.android.Datadog
+import com.roomu.app.utils.ProfanityFilter
+import kotlinx.coroutines.tasks.await
 
 @AndroidEntryPoint
 class LoginActivity : AppCompatActivity() {
 
     private val viewModel: LoginViewModel by viewModels()
+    private val registerViewModel: RegisterViewModel by viewModels() // ✅ Para verificar nombres
     private lateinit var googleSignInClient: GoogleSignInClient
     private lateinit var auth: FirebaseAuth
     private val RC_SIGN_IN = 9001
@@ -52,7 +57,8 @@ class LoginActivity : AppCompatActivity() {
             Log.d(TAG, "⚡ Usuario ya autenticado, redirigiendo instantáneamente...")
             // ✅ DATADOG: Actualizar user info si ya hay sesión
             updateDatadogUserInfo(auth.currentUser!!)
-            checkRenterRoleAndNavigateQuickly()
+            // ✅ Verificar nombre inapropiado antes de redirigir
+            checkInappropriateNameAndNavigateQuickly()
             return
         }
 
@@ -115,7 +121,7 @@ class LoginActivity : AppCompatActivity() {
                     dismissProgressDialog()
 
                     if (it.isSuccess == true) {
-                        Log.d(TAG, "Login exitoso - Verificando rol...")
+                        Log.d(TAG, "Login exitoso - Verificando rol y nombre...")
 
                         // ✅ DATADOG: Actualizar user info después del login
                         auth.currentUser?.let { firebaseUser ->
@@ -130,10 +136,11 @@ class LoginActivity : AppCompatActivity() {
                             "¡Bienvenido!",
                             "Inicio de sesión exitoso\n¡Hola $userName!"
                         ) {
-                            showProgressDialog("Cargando información...")
+                            showProgressDialog("Verificando perfil...")
                             lifecycleScope.launch {
                                 kotlinx.coroutines.delay(500)
-                                checkRenterRoleAndNavigate()
+                                // ✅ Verificar nombre inapropiado antes de navegar
+                                checkInappropriateNameAndNavigate()
                             }
                         }
                     } else if (it.isFailure == true) {
@@ -165,72 +172,108 @@ class LoginActivity : AppCompatActivity() {
         }
     }
 
-    // ✅ NUEVA: Navegación rápida sin diálogos (para sesión existente)
-    private fun checkRenterRoleAndNavigateQuickly() {
-        val user = auth.currentUser
-        user?.uid?.let { uid ->
-            firestore.collection("renters")
-                .document(uid)
-                .get()
-                .addOnSuccessListener { document ->
-                    val intent = if (document.exists()) {
-                        Log.d(TAG, "👤 Arrendatario - Navegando a RenterDashboard")
-                        Intent(this, RenterDashboardActivity::class.java)
-                    } else {
-                        Log.d(TAG, "👤 Cliente - Navegando a MainActivity")
-                        Intent(this, MainActivity::class.java)
-                    }
+    // ✅ NUEVA: Verificar nombre inapropiado y navegar rápidamente (para sesión existente)
+    private fun checkInappropriateNameAndNavigateQuickly() {
+        val userId = auth.currentUser?.uid ?: return
 
-                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        lifecycleScope.launch {
+            try {
+                // Verificar y censurar si es necesario
+                val hadInappropriateName = registerViewModel.checkAndCensorExistingUserName(userId)
+
+                if (hadInappropriateName) {
+                    Log.d(TAG, "⚠️ Nombre inapropiado detectado al iniciar sesión")
+                    // Redirigir directamente al perfil
+                    val intent = Intent(this@LoginActivity, ProfileActivity::class.java).apply {
+                        putExtra("force_name_update", true)
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                    }
                     startActivity(intent)
                     finish()
+                } else {
+                    // Continuar con navegación normal
+                    navigateBasedOnRole(userId)
                 }
-                .addOnFailureListener { e ->
-                    Log.e(TAG, "Error verificando rol: ${e.message}")
-                    // Por defecto, ir a MainActivity
-                    val intent = Intent(this, MainActivity::class.java)
-                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                    startActivity(intent)
-                    finish()
-                }
-        } ?: finish()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error verificando nombre: ${e.message}")
+                // En caso de error, continuar con navegación normal
+                navigateBasedOnRole(userId)
+            }
+        }
     }
 
-    // ✅ Navegación con diálogos (para login nuevo)
-    private fun checkRenterRoleAndNavigate() {
-        val user = auth.currentUser
-        user?.uid?.let { uid ->
-            firestore.collection("renters")
-                .document(uid)
-                .get()
-                .addOnSuccessListener { document ->
-                    dismissProgressDialog()
+    // ✅ NUEVA: Verificar nombre inapropiado y navegar (para login nuevo)
+    private fun checkInappropriateNameAndNavigate() {
+        val userId = auth.currentUser?.uid ?: return
 
-                    val intent = if (document.exists()) {
-                        Log.d(TAG, "Usuario es arrendatario - Navegando a RenterDashboardActivity")
-                        Intent(this, RenterDashboardActivity::class.java)
-                    } else {
-                        Log.d(TAG, "Usuario no es arrendatario - Navegando a MainActivity")
-                        Intent(this, MainActivity::class.java)
-                    }
+        lifecycleScope.launch {
+            try {
+                // Verificar y censurar si es necesario
+                val hadInappropriateName = registerViewModel.checkAndCensorExistingUserName(userId)
 
-                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                    startActivity(intent)
-                    finish()
+                dismissProgressDialog()
+
+                if (hadInappropriateName) {
+                    Log.d(TAG, "⚠️ Nombre inapropiado detectado")
+
+                    // Mostrar advertencia
+                    SweetAlertDialog(this@LoginActivity, SweetAlertDialog.WARNING_TYPE)
+                        .setTitleText("⚠️ Actualización de perfil requerida")
+                        .setContentText("Tu nombre de perfil contiene contenido inapropiado y ha sido censurado. Por favor actualiza tu perfil con un nombre apropiado.")
+                        .setConfirmText("Ir a perfil")
+                        .setConfirmClickListener { dialog ->
+                            dialog.dismiss()
+                            val intent = Intent(this@LoginActivity, ProfileActivity::class.java).apply {
+                                putExtra("force_name_update", true)
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                            }
+                            startActivity(intent)
+                            finish()
+                        }
+                        .setCancelButton("Después") { dialog ->
+                            dialog.dismiss()
+                            navigateBasedOnRole(userId)
+                        }
+                        .show()
+                } else {
+                    // Continuar con navegación normal
+                    navigateBasedOnRole(userId)
                 }
-                .addOnFailureListener { e ->
-                    Log.e(TAG, "Error al verificar rol de arrendatario: ${e.message}")
-                    dismissProgressDialog()
-
-                    // En caso de error, asumimos que no es arrendatario por seguridad
-                    val intent = Intent(this, MainActivity::class.java)
-                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                    startActivity(intent)
-                    finish()
-                }
-        } ?: run {
-            dismissProgressDialog()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error verificando nombre: ${e.message}")
+                dismissProgressDialog()
+                // En caso de error, continuar con navegación normal
+                navigateBasedOnRole(userId)
+            }
         }
+    }
+
+    // ✅ NUEVA: Función auxiliar para navegar según el rol
+    private fun navigateBasedOnRole(userId: String) {
+        firestore.collection("renters")
+            .document(userId)
+            .get()
+            .addOnSuccessListener { document ->
+                val intent = if (document.exists()) {
+                    Log.d(TAG, "👤 Arrendatario - Navegando a RenterDashboard")
+                    Intent(this, RenterDashboardActivity::class.java)
+                } else {
+                    Log.d(TAG, "👤 Cliente - Navegando a MainActivity")
+                    Intent(this, MainActivity::class.java)
+                }
+
+                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                startActivity(intent)
+                finish()
+            }
+            .addOnFailureListener { e ->
+                Log.e(TAG, "Error verificando rol: ${e.message}")
+                // Por defecto, ir a MainActivity
+                val intent = Intent(this, MainActivity::class.java)
+                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                startActivity(intent)
+                finish()
+            }
     }
 
     private fun validateLoginInput(email: String, password: String): Boolean {

@@ -17,6 +17,7 @@ import cn.pedant.SweetAlert.SweetAlertDialog
 import com.roomu.app.R
 import com.roomu.app.ui.auth.viewmodel.RegisterViewModel
 import com.roomu.app.ui.terms.TermsActivity
+import com.roomu.app.utils.ProfanityFilter
 
 @AndroidEntryPoint
 class RegisterActivity : AppCompatActivity() {
@@ -138,6 +139,17 @@ class RegisterActivity : AppCompatActivity() {
             showWarningDialog(
                 "Nombre muy corto",
                 "El nombre debe tener al menos 3 caracteres"
+            )
+            return false
+        }
+
+        // ✅ NUEVA VALIDACIÓN: Verificar lenguaje inapropiado
+        if (ProfanityFilter.containsInappropriateLanguage(fullName)) {
+            etFullName.error = "Nombre inapropiado"
+            etFullName.requestFocus()
+            showErrorDialog(
+                "Lenguaje inapropiado detectado",
+                "Por favor usa un nombre apropiado. No se permiten palabras ofensivas, vulgares o inapropiadas en el nombre."
             )
             return false
         }
