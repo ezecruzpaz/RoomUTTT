@@ -5,6 +5,7 @@ plugins {
     id("com.google.gms.google-services")
     id("dagger.hilt.android.plugin")
     id("kotlin-kapt")
+    id("com.datadoghq.dd-sdk-android-gradle-plugin") version "1.14.0"
 }
 
 android {
@@ -15,8 +16,8 @@ android {
         applicationId = "com.roomu.app"
         minSdk = 24
         targetSdk = 36
-        versionCode = 8
-        versionName = "1.0.7"
+        versionCode = 9
+        versionName = "1.0.8"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -38,8 +39,8 @@ android {
     }
     buildFeatures {
         compose = true
-        viewBinding = true      // ← AGREGAR
-        dataBinding = true      // ← AGREGAR
+        viewBinding = true
+        dataBinding = true
     }
 
     packaging {
@@ -60,7 +61,8 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.room.runtime.android)
-    implementation(libs.places)  // Añade esta línea aquí
+    implementation(libs.places)
+    implementation(libs.firebase.crashlytics.buildtools)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -99,7 +101,7 @@ dependencies {
 
     // Glide para cargar imágenes
     implementation("com.github.bumptech.glide:glide:4.16.0")
-    annotationProcessor("com.github.bumptech.glide:compiler:4.16.0")
+    kapt("com.github.bumptech.glide:compiler:4.16.0")
 
     // HTTP Client para API (Retrofit + OkHttp)
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
@@ -111,9 +113,15 @@ dependencies {
 
     // CardView para el perfil
     implementation("androidx.cardview:cardview:1.0.0")
-    //notificaciones push
-    implementation ("com.google.firebase:firebase-messaging-ktx:23.2.1")
 
+    // Notificaciones push
+    implementation("com.google.firebase:firebase-messaging-ktx:23.2.1")
 
-
+    // ✅ DATADOG SDK -  (2.9.0)
+    implementation("com.datadoghq:dd-sdk-android-core:2.9.0")
+    implementation("com.datadoghq:dd-sdk-android-rum:2.9.0")
+    implementation("com.datadoghq:dd-sdk-android-logs:2.9.0")
+    implementation("com.datadoghq:dd-sdk-android-trace:2.9.0")
+    implementation("com.datadoghq:dd-sdk-android-okhttp:2.9.0")
+    implementation("com.datadoghq:dd-sdk-android-rum-coroutines:2.9.0")
 }

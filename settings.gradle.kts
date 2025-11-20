@@ -9,6 +9,9 @@ pluginManagement {
         }
         mavenCentral()
         gradlePluginPortal()
+        maven {
+            url = uri("https://public.packagecloud.io/datadog/android/maven")
+        }
     }
 }
 dependencyResolutionManagement {
@@ -16,6 +19,9 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven {
+            url = uri("https://public.packagecloud.io/datadog/android/maven")
+        }
     }
 }
 

@@ -16,6 +16,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -24,6 +25,7 @@ import com.roomu.app.R
 import com.roomu.app.ui.auth.viewmodel.LoginViewModel
 import com.roomu.app.ui.home.MainActivity
 import com.roomu.app.ui.renter.RenterDashboardActivity
+import com.datadog.android.Datadog
 
 @AndroidEntryPoint
 class LoginActivity : AppCompatActivity() {
@@ -48,6 +50,8 @@ class LoginActivity : AppCompatActivity() {
         // ✅ VERIFICACIÓN INVISIBLE - Si hay sesión, redirigir INMEDIATAMENTE
         if (auth.currentUser != null) {
             Log.d(TAG, "⚡ Usuario ya autenticado, redirigiendo instantáneamente...")
+            // ✅ DATADOG: Actualizar user info si ya hay sesión
+            updateDatadogUserInfo(auth.currentUser!!)
             checkRenterRoleAndNavigateQuickly()
             return
         }
@@ -113,6 +117,11 @@ class LoginActivity : AppCompatActivity() {
                     if (it.isSuccess == true) {
                         Log.d(TAG, "Login exitoso - Verificando rol...")
 
+                        // ✅ DATADOG: Actualizar user info después del login
+                        auth.currentUser?.let { firebaseUser ->
+                            updateDatadogUserInfo(firebaseUser)
+                        }
+
                         val userName = auth.currentUser?.displayName
                             ?: auth.currentUser?.email?.substringBefore("@")
                             ?: "usuario"
@@ -134,6 +143,25 @@ class LoginActivity : AppCompatActivity() {
                     }
                 }
             }
+        }
+    }
+
+    // ✅ NUEVO: Función para actualizar user info en Datadog
+    private fun updateDatadogUserInfo(firebaseUser: FirebaseUser) {
+        try {
+            Datadog.setUserInfo(
+                id = firebaseUser.uid,
+                name = firebaseUser.displayName ?: "Usuario",
+                email = firebaseUser.email ?: "",
+                extraInfo = mapOf(
+                    "provider" to (firebaseUser.providerId ?: "unknown"),
+                    "email_verified" to firebaseUser.isEmailVerified.toString(),
+                    "phone_number" to (firebaseUser.phoneNumber ?: "none")
+                )
+            )
+            Log.d(TAG, "✅ Datadog user info actualizado para: ${firebaseUser.email}")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error actualizando Datadog user info", e)
         }
     }
 

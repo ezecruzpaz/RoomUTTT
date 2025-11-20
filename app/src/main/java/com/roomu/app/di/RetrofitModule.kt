@@ -12,6 +12,8 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
+import com.datadog.android.okhttp.DatadogInterceptor
+import com.datadog.android.okhttp.trace.TracingInterceptor
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -27,7 +29,16 @@ object RetrofitModule {
         }
 
         return OkHttpClient.Builder()
+            // 1. Logging interceptor
             .addInterceptor(logging)
+
+            // 2. DATADOG: Tracing (debe ir ANTES de DatadogInterceptor)
+            .addInterceptor(TracingInterceptor())
+
+            // 3. DATADOG: RUM monitoring
+            .addNetworkInterceptor(DatadogInterceptor())
+
+            // Timeouts
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
@@ -37,9 +48,8 @@ object RetrofitModule {
     @Provides
     @Singleton
     fun provideGsonConverterFactory(): GsonConverterFactory {
-        // QUITÉ excludeFieldsWithoutExposeAnnotation() - Era el culpable
         val gson = GsonBuilder()
-            .serializeNulls()  // Incluye campos null
+            .serializeNulls()
             .create()
 
         return GsonConverterFactory.create(gson)
