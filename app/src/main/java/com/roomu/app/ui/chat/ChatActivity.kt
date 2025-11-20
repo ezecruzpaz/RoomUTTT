@@ -218,11 +218,11 @@ class ChatActivity : AppCompatActivity() {
             .delete()
             .addOnSuccessListener {
                 Log.d("CHAT", "✅ Mensaje eliminado: ${message.messageId}")
-                Toast.makeText(this, "Mensaje eliminado", Toast.LENGTH_SHORT).show()
+
             }
             .addOnFailureListener { e ->
                 Log.e("CHAT", "❌ Error eliminando mensaje: ${e.message}")
-                Toast.makeText(this, "Error al eliminar", Toast.LENGTH_SHORT).show()
+
             }
     }
     private fun setupBackButton() {
@@ -516,7 +516,6 @@ class ChatActivity : AppCompatActivity() {
                 }
             }
             .addOnFailureListener { e ->
-                Toast.makeText(this, "Error al obtener teléfono", Toast.LENGTH_SHORT).show()
                 Log.e("ChatActivity", "❌ Error obteniendo teléfono de users: ${e.message}")
                 e.printStackTrace()
             }

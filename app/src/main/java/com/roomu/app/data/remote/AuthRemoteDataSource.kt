@@ -36,7 +36,6 @@ class AuthRemoteDataSource @Inject constructor(
                         "photoUrl" to (account.photoUrl?.toString() ?: "")
                     )
                     userDoc.set(userData).await()
-                    Log.d("AuthRemoteDataSource", "Nuevo usuario de Google guardado en Firestore")
                 }
             }
 
@@ -47,10 +46,8 @@ class AuthRemoteDataSource @Inject constructor(
                     .build()
             )?.await()
 
-            Log.d("AuthRemoteDataSource", "Usuario Google autenticado: ${result.user?.uid}")
             Result.success(result.user?.uid ?: "")
         } catch (e: Exception) {
-            Log.e("AuthRemoteDataSource", "Error en signInWithGoogle: ${e.message}")
             Result.failure(e)
         }
     }

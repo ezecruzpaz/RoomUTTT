@@ -199,11 +199,7 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
                 currentLocation = LatLng(lat, lng)
                 googleMap?.animateCamera(CameraUpdateFactory.newLatLngZoom(currentLocation!!, 17f))
 
-                Toast.makeText(
-                    this,
-                    "✅ Ubicación seleccionada",
-                    Toast.LENGTH_SHORT
-                ).show()
+
 
                 Log.d(TAG, "📍 Ubicación desde pantalla completa: $lat, $lng")
             }
@@ -467,7 +463,6 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
 
         } catch (e: Exception) {
             Log.e(TAG, "Error al abrir cámara: ${e.message}", e)
-            Toast.makeText(this, "Error al abrir la cámara", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -529,11 +524,7 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
                             val uid = auth.currentUser?.uid
 
                             if (uid == null) {
-                                Toast.makeText(
-                                    this@CreateRoomActivity,
-                                    "Error: Usuario no autenticado",
-                                    Toast.LENGTH_SHORT
-                                ).show()
+
                                 return@launch
                             }
 
@@ -556,26 +547,14 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
                                     intent.putExtra("fromRenterDashboard", true)
                                     startActivity(intent)
                                 } else {
-                                    Toast.makeText(
-                                        this@CreateRoomActivity,
-                                        "Aún no tienes cuartos publicados",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
+
                                 }
                             } else {
-                                Toast.makeText(
-                                    this@CreateRoomActivity,
-                                    "Error al cargar cuartos",
-                                    Toast.LENGTH_SHORT
-                                ).show()
+
                             }
                         } catch (e: Exception) {
                             Log.e(TAG, "Error cargando cuartos: ${e.message}")
-                            Toast.makeText(
-                                this@CreateRoomActivity,
-                                "Error de conexión",
-                                Toast.LENGTH_SHORT
-                            ).show()
+
                         }
                     }
                     false
@@ -603,11 +582,7 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
                 place.latLng?.let { latLng ->
                     googleMap?.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 17f))
                     Log.d(TAG, "📍 Lugar seleccionado: ${place.name}, $latLng")
-                    Toast.makeText(
-                        this@CreateRoomActivity,
-                        "📍 ${place.name}",
-                        Toast.LENGTH_SHORT
-                    ).show()
+
                 }
             }
 
@@ -780,7 +755,7 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
 
         val ubicacion = currentLocation?.let { "${it.latitude},${it.longitude}" } ?: "20.0910,-98.7624"
 
-        // ✅ PROCESO OPTIMIZADO DE CREACIÓN
+        // ✅ PROCESO DE CREACIÓN CON VALIDACIÓN CORRECTA
         lifecycleScope.launch {
             try {
                 showProgressDialog("Subiendo cuarto...")
@@ -815,34 +790,82 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
 
                 dismissProgressDialog()
 
-                // ✅ MANEJO DE RESPUESTA MEJORADO - MENSAJE SIEMPRE EN ESPAÑOL
-                if (response.isSuccessful && response.body() != null) {
-                    Log.d(TAG, "✅ Cuarto creado exitosamente")
+                // ✅ VALIDACIÓN CORRECTA USANDO TU MODELO RoomResponse
+                if (response.isSuccessful) {
+                    val roomResponse = response.body()
 
-                    // Mensaje siempre en español, sin importar la respuesta del servidor
-                    showSuccessDialog(
-                        title = "¡Éxito!",
-                        message = "Cuarto creado exitosamente"  // ✅ Mensaje fijo en español
-                    ) {
-                        // Limpiar formulario antes de navegar
-                        limpiarFormulario()
+                    if (roomResponse != null) {
+                        Log.d(TAG, "📥 Respuesta recibida:")
+                        Log.d(TAG, "   - isSuccess: ${roomResponse.isSuccess}")
+                        Log.d(TAG, "   - message: ${roomResponse.message}")
+                        Log.d(TAG, "   - result: ${roomResponse.result}")
 
-                        // Navegar al dashboard
-                        val intent = Intent(this@CreateRoomActivity, RenterDashboardActivity::class.java)
-                        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
-                        startActivity(intent)
-                        finish()
+                        // ✅ Verificar si el cuarto fue creado exitosamente
+                        if (roomResponse.isSuccess && roomResponse.result != null) {
+                            // ✅ ÉXITO - El cuarto SÍ fue creado
+                            Log.d(TAG, "✅ Cuarto creado exitosamente con ID: ${roomResponse.result.id}")
+
+                            showSuccessDialog(
+                                title = "¡Éxito!",
+                                message = "Cuarto creado exitosamente"
+                            ) {
+                                limpiarFormulario()
+
+                                val intent = Intent(this@CreateRoomActivity, RenterDashboardActivity::class.java)
+                                intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+                                startActivity(intent)
+                                finish()
+                            }
+                        } else {
+                            // ❌ ERROR - La API rechazó el cuarto (contenido inapropiado, etc.)
+                            Log.w(TAG, "⚠️ El cuarto NO fue creado")
+                            Log.w(TAG, "   Razón: ${roomResponse.message}")
+
+                            showErrorDialog(
+                                "Contenido No Permitido",
+                                roomResponse.message ?: "El cuarto no pudo ser creado. Por favor, revisa el contenido e imágenes."
+                            )
+                        }
+                    } else {
+                        // Response body es null (muy raro)
+                        Log.e(TAG, "❌ Response body es null")
+                        showErrorDialog(
+                            "Error",
+                            "No se recibió respuesta del servidor"
+                        )
                     }
                 } else {
-                    Log.e(TAG, "❌ Error al crear cuarto: ${response.code()}")
-                    showErrorDialog(
-                        "Error al crear cuarto",
-                        "Hubo un problema al crear el cuarto. Código: ${response.code()}"
-                    )
+                    // ❌ Error HTTP (400, 500, etc.)
+                    val errorBody = response.errorBody()?.string() ?: ""
+                    Log.e(TAG, "❌ Error HTTP ${response.code()}")
+                    Log.e(TAG, "   Error body: $errorBody")
+
+                    // Intentar extraer el mensaje de error si viene en JSON
+                    val errorMessage = try {
+                        when {
+                            errorBody.contains("inapropiado", ignoreCase = true) ||
+                                    errorBody.contains("inappropriate", ignoreCase = true) ->
+                                "El contenido fue rechazado por contener información o imágenes inapropiadas"
+
+                            errorBody.contains("message", ignoreCase = true) -> {
+                                // Intentar parsear el JSON de error
+                                val messageRegex = """"message"\s*:\s*"([^"]+)"""".toRegex()
+                                messageRegex.find(errorBody)?.groupValues?.get(1)
+                                    ?: "Error del servidor: ${response.code()}"
+                            }
+
+                            else -> "Error al crear el cuarto. Código: ${response.code()}"
+                        }
+                    } catch (e: Exception) {
+                        "Error al crear el cuarto. Código: ${response.code()}"
+                    }
+
+                    showErrorDialog("Error al crear cuarto", errorMessage)
                 }
+
             } catch (e: Exception) {
                 dismissProgressDialog()
-                Log.e(TAG, "❌ Error de red: ${e.message}", e)
+                Log.e(TAG, "❌ Excepción al crear cuarto: ${e.message}", e)
                 showErrorDialog(
                     "Error de Conexión",
                     "No se pudo conectar con el servidor. Verifica tu conexión a internet."
@@ -1037,7 +1060,6 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
                 if (location != null) {
                     currentLocation = LatLng(location.latitude, location.longitude)
                     googleMap?.animateCamera(CameraUpdateFactory.newLatLngZoom(currentLocation!!, 15f))
-                    Toast.makeText(this, "📍 Ubicación obtenida", Toast.LENGTH_SHORT).show()
                 } else {
                     useDefaultLocation()
                 }
@@ -1052,7 +1074,6 @@ class CreateRoomActivity : AppCompatActivity(), OnMapReadyCallback {
     private fun useDefaultLocation() {
         currentLocation = LatLng(20.0910, -98.7624)
         googleMap?.animateCamera(CameraUpdateFactory.newLatLngZoom(currentLocation!!, 12f))
-        Toast.makeText(this, "Usando ubicación predeterminada", Toast.LENGTH_SHORT).show()
     }
 
     private fun showPermissionRationaleDialog(title: String, message: String, onAccept: () -> Unit) {
