@@ -6,13 +6,16 @@ import androidx.lifecycle.viewModelScope
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
+import com.google.android.gms.maps.model.Circle
 import com.google.android.gms.maps.model.CircleOptions
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
 import com.roomu.app.data.api.RoomApiService
 import com.roomu.app.data.preferences.LocationPreferences
 import com.roomu.app.domain.model.RoomData
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -53,7 +56,11 @@ class MainViewModel @Inject constructor(
     // 🔥 Radio de búsqueda en kilómetros
     private val searchRadiusKm = 10.0
 
+    // 🗺️ Referencias del mapa
     private var googleMap: GoogleMap? = null
+    private val markers = mutableListOf<Marker>()
+    private var radiusCircle: Circle? = null
+
     private var isSearchActive = false
     private var hasLocationPermission = false
 
@@ -86,17 +93,24 @@ class MainViewModel @Inject constructor(
                         _allRooms.value = availableRooms
                         Log.d(TAG, "✅ ${availableRooms.size} cuartos disponibles cargados (de ${roomsResponse.result.size} totales)")
 
-                        // ✅ NO MOSTRAR NADA HASTA TENER UBICACIÓN
+                        // ✅ Si tenemos ubicación, filtrar
                         if (hasLocationPermission && _currentLocation.value != null) {
                             filterByCurrentLocation()
+
+                            // 🔥 DIBUJAR RADIO Y MARCADORES EN BACKGROUND
+                            delay(200) // Dar tiempo a que se rendericen los datos
+                            googleMap?.let { map ->
+                                _currentLocation.value?.let { location ->
+                                    drawSearchRadius(map, location)
+                                    updateMapMarkers()
+                                    Log.d(TAG, "🗺️ Mapa actualizado con radio y marcadores")
+                                }
+                            }
                         } else {
                             Log.d(TAG, "⏳ Esperando ubicación del usuario...")
                             _rooms.value = emptyList()
                             _showViewMoreButton.value = false
                         }
-
-                        // Actualizar marcadores en el mapa
-                        updateMapMarkers()
                     } else {
                         _allRooms.value = emptyList()
                         _rooms.value = emptyList()
@@ -142,7 +156,7 @@ class MainViewModel @Inject constructor(
 
                 if (hasLocationPermission && _currentLocation.value != null) {
                     val currentLocation = _currentLocation.value!!
-                    googleMap?.clear()
+                    clearMapMarkers()
                     filterByCurrentLocation()
 
                     val nearbyRooms = _allRooms.value.filter { room ->
@@ -164,7 +178,7 @@ class MainViewModel @Inject constructor(
                 } else {
                     _rooms.value = emptyList()
                     _showViewMoreButton.value = false
-                    googleMap?.clear()
+                    clearMapMarkers()
                 }
 
                 return@launch
@@ -175,7 +189,8 @@ class MainViewModel @Inject constructor(
             // ✅ Buscar solo en cuartos disponibles
             val filtered = _allRooms.value.filter { room ->
                 room.nombre.contains(query, ignoreCase = true) ||
-                        room.descripcion?.contains(query, ignoreCase = true) == true
+                        room.descripcion?.contains(query, ignoreCase = true) == true ||
+                        room.ubicacion.contains(query, ignoreCase = true)
             }
 
             // ✅ Mostrar TODOS los resultados disponibles
@@ -191,7 +206,7 @@ class MainViewModel @Inject constructor(
                 }
             } else {
                 Log.w(TAG, "⚠️ No se encontraron cuartos disponibles con '$query'")
-                googleMap?.clear()
+                clearMapMarkers()
                 _rooms.value = emptyList()
                 _showViewMoreButton.value = false
             }
@@ -218,17 +233,62 @@ class MainViewModel @Inject constructor(
         Log.d(TAG, "🏠 ${nearbyRooms.size} cuartos disponibles en radio de ${searchRadiusKm}km")
 
         googleMap?.let { map ->
-            map.clear()
+            clearMapMarkers()
             map.animateCamera(CameraUpdateFactory.newLatLngZoom(location, 11f), 1000, null)
             drawSearchRadius(map, location)
             updateMapMarkers(nearbyRooms)
         }
     }
 
+    // 🗺️ NUEVA FUNCIÓN: Actualizar marcadores con cuartos filtrados (para filtros de MainActivity)
+    fun updateMapMarkersWithFilteredRooms(filteredRooms: List<RoomData>) {
+        googleMap?.let { map ->
+            // Limpiar solo los marcadores, NO el círculo
+            markers.forEach { it.remove() }
+            markers.clear()
+
+            // 🔥 MANTENER el círculo de radio visible
+            // Si no existe y tenemos ubicación, dibujarlo
+            if (radiusCircle == null && _currentLocation.value != null) {
+                drawSearchRadius(map, _currentLocation.value!!)
+            }
+
+            // Agregar marcadores solo para cuartos filtrados - TODOS ROJOS
+            filteredRooms.forEach { room ->
+                room.getLatLng()?.let { (lat, lng) ->
+                    val position = LatLng(lat, lng)
+
+                    val marker = map.addMarker(
+                        MarkerOptions()
+                            .position(position)
+                            .title(room.nombre)
+                            .snippet("${room.precio}/mes - ${room.capacidad} persona(s)")
+                            .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED))
+                    )
+
+                    marker?.let { markers.add(it) }
+                }
+            }
+
+            Log.d(TAG, "🗺️ Mapa actualizado con ${filteredRooms.size} marcadores filtrados (radio visible)")
+        }
+    }
+
+    // 🗺️ Limpiar todos los marcadores y círculo del mapa
+    private fun clearMapMarkers() {
+        markers.forEach { it.remove() }
+        markers.clear()
+        radiusCircle?.remove()
+        radiusCircle = null
+    }
+
     // 🔥 Dibujar círculo de radio de búsqueda
     private fun drawSearchRadius(map: GoogleMap, center: LatLng) {
         try {
-            map.addCircle(
+            // Remover círculo anterior si existe
+            radiusCircle?.remove()
+
+            radiusCircle = map.addCircle(
                 CircleOptions()
                     .center(center)
                     .radius(searchRadiusKm * 1000)
@@ -244,9 +304,13 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    // 🔥 Actualizar marcadores en el mapa
+    // 🔥 Actualizar marcadores en el mapa - TODOS ROJOS
     private fun updateMapMarkers(roomsToShow: List<RoomData>? = null) {
         googleMap?.let { map ->
+            // Limpiar marcadores anteriores
+            markers.forEach { it.remove() }
+            markers.clear()
+
             // ✅ Solo mostrar marcadores de cuartos disponibles cercanos
             val rooms = roomsToShow ?: (_currentLocation.value?.let { location ->
                 _allRooms.value.filter { room ->
@@ -255,15 +319,18 @@ class MainViewModel @Inject constructor(
                 }
             } ?: emptyList())
 
+            // ✅ TODOS LOS MARCADORES EN ROJO
             rooms.forEach { room ->
                 room.getLatLng()?.let { (lat, lng) ->
-                    map.addMarker(
+                    val marker = map.addMarker(
                         MarkerOptions()
                             .position(LatLng(lat, lng))
                             .title(room.nombre)
                             .snippet("$${room.precio} - ${room.capacidad} personas")
                             .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED))
                     )
+
+                    marker?.let { markers.add(it) }
                 }
             }
             Log.d(TAG, "🗺️ ${rooms.size} marcadores de cuartos disponibles agregados al mapa")
@@ -282,6 +349,7 @@ class MainViewModel @Inject constructor(
 
         _currentLocation.value?.let { location ->
             googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 11f))
+            // 🔥 DIBUJAR RADIO AL INICIALIZAR EL MAPA SI YA TENEMOS UBICACIÓN
             drawSearchRadius(googleMap, location)
             updateMapMarkers()
         } ?: run {

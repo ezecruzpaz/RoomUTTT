@@ -30,12 +30,15 @@ import com.roomu.app.ui.profile.ProfileActivity
 import com.datadog.android.Datadog
 import com.roomu.app.utils.ProfanityFilter
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 @AndroidEntryPoint
 class LoginActivity : AppCompatActivity() {
 
     private val viewModel: LoginViewModel by viewModels()
-    private val registerViewModel: RegisterViewModel by viewModels() // ✅ Para verificar nombres
+    private val registerViewModel: RegisterViewModel by viewModels()
     private lateinit var googleSignInClient: GoogleSignInClient
     private lateinit var auth: FirebaseAuth
     private val RC_SIGN_IN = 9001
@@ -52,13 +55,17 @@ class LoginActivity : AppCompatActivity() {
 
         auth = FirebaseAuth.getInstance()
 
-        // ✅ VERIFICACIÓN INVISIBLE - Si hay sesión, redirigir INMEDIATAMENTE
+        // 🔥 NAVEGACIÓN INSTANTÁNEA - Si hay sesión, redirigir SIN UI
         if (auth.currentUser != null) {
             Log.d(TAG, "⚡ Usuario ya autenticado, redirigiendo instantáneamente...")
-            // ✅ DATADOG: Actualizar user info si ya hay sesión
-            updateDatadogUserInfo(auth.currentUser!!)
-            // ✅ Verificar nombre inapropiado antes de redirigir
-            checkInappropriateNameAndNavigateQuickly()
+
+            // ✅ Actualizar Datadog en background (no bloquea)
+            lifecycleScope.launch(Dispatchers.IO) {
+                updateDatadogUserInfo(auth.currentUser!!)
+            }
+
+            // 🔥 NAVEGACIÓN INMEDIATA - Sin esperar nada
+            navigateToMainScreenInstantly()
             return
         }
 
@@ -121,11 +128,13 @@ class LoginActivity : AppCompatActivity() {
                     dismissProgressDialog()
 
                     if (it.isSuccess == true) {
-                        Log.d(TAG, "Login exitoso - Verificando rol y nombre...")
+                        Log.d(TAG, "Login exitoso")
 
-                        // ✅ DATADOG: Actualizar user info después del login
-                        auth.currentUser?.let { firebaseUser ->
-                            updateDatadogUserInfo(firebaseUser)
+                        // ✅ Actualizar Datadog en background
+                        lifecycleScope.launch(Dispatchers.IO) {
+                            auth.currentUser?.let { firebaseUser ->
+                                updateDatadogUserInfo(firebaseUser)
+                            }
                         }
 
                         val userName = auth.currentUser?.displayName
@@ -136,12 +145,8 @@ class LoginActivity : AppCompatActivity() {
                             "¡Bienvenido!",
                             "Inicio de sesión exitoso\n¡Hola $userName!"
                         ) {
-                            showProgressDialog("Verificando perfil...")
-                            lifecycleScope.launch {
-                                kotlinx.coroutines.delay(500)
-                                // ✅ Verificar nombre inapropiado antes de navegar
-                                checkInappropriateNameAndNavigate()
-                            }
+                            // 🔥 Navegar inmediatamente después del diálogo
+                            navigateToMainScreenInstantly()
                         }
                     } else if (it.isFailure == true) {
                         Log.e(TAG, "Login falló: ${it.exceptionOrNull()?.message}")
@@ -153,7 +158,83 @@ class LoginActivity : AppCompatActivity() {
         }
     }
 
-    // ✅ NUEVO: Función para actualizar user info en Datadog
+    // 🔥 NUEVA: Navegación instantánea sin esperar verificaciones
+    private fun navigateToMainScreenInstantly() {
+        val userId = auth.currentUser?.uid
+
+        if (userId == null) {
+            Log.e(TAG, "❌ User ID null, no se puede navegar")
+            return
+        }
+
+        // 🔥 PASO 1: Navegar INMEDIATAMENTE a MainActivity por defecto
+        // La verificación de rol se hará en background
+        val intent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+        startActivity(intent)
+        finish()
+
+        // 🔥 PASO 2: Verificar rol y nombre inapropiado EN BACKGROUND (después de navegar)
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                // Timeout de 2 segundos máximo para verificaciones
+                withTimeoutOrNull(2000) {
+                    // Verificar si es renter
+                    val isRenter = checkIfUserIsRenter(userId)
+
+                    // Verificar nombre inapropiado
+                    val hadInappropriateName = registerViewModel.checkAndCensorExistingUserName(userId)
+
+                    withContext(Dispatchers.Main) {
+                        // Si es renter, redirigir a RenterDashboard
+                        if (isRenter) {
+                            Log.d(TAG, "👤 Usuario es renter, redirigiendo...")
+                            val renterIntent = Intent(this@LoginActivity, RenterDashboardActivity::class.java).apply {
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                            }
+                            startActivity(renterIntent)
+                        }
+
+                        // Si tiene nombre inapropiado, mostrar aviso (pero no bloquear)
+                        if (hadInappropriateName && !isFinishing) {
+                            SweetAlertDialog(this@LoginActivity, SweetAlertDialog.WARNING_TYPE)
+                                .setTitleText("⚠️ Actualización de perfil")
+                                .setContentText("Tu nombre contiene contenido inapropiado. Por favor actualízalo.")
+                                .setConfirmText("Ir a perfil")
+                                .setConfirmClickListener { dialog ->
+                                    dialog.dismiss()
+                                    startActivity(Intent(this@LoginActivity, ProfileActivity::class.java).apply {
+                                        putExtra("force_name_update", true)
+                                    })
+                                }
+                                .setCancelButton("Después") { it.dismiss() }
+                                .show()
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Error en verificaciones background: ${e.message}")
+                // No hacer nada, el usuario ya está navegando
+            }
+        }
+    }
+
+    // 🔥 NUEVA: Verificar si es renter (suspendible)
+    private suspend fun checkIfUserIsRenter(userId: String): Boolean {
+        return try {
+            val document = firestore.collection("renters")
+                .document(userId)
+                .get()
+                .await()
+            document.exists()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error verificando rol: ${e.message}")
+            false
+        }
+    }
+
+    // ✅ Actualizar user info en Datadog (no bloquea)
     private fun updateDatadogUserInfo(firebaseUser: FirebaseUser) {
         try {
             Datadog.setUserInfo(
@@ -166,114 +247,10 @@ class LoginActivity : AppCompatActivity() {
                     "phone_number" to (firebaseUser.phoneNumber ?: "none")
                 )
             )
-            Log.d(TAG, "✅ Datadog user info actualizado para: ${firebaseUser.email}")
+            Log.d(TAG, "✅ Datadog user info actualizado")
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Error actualizando Datadog user info", e)
+            Log.e(TAG, "❌ Error actualizando Datadog", e)
         }
-    }
-
-    // ✅ NUEVA: Verificar nombre inapropiado y navegar rápidamente (para sesión existente)
-    private fun checkInappropriateNameAndNavigateQuickly() {
-        val userId = auth.currentUser?.uid ?: return
-
-        lifecycleScope.launch {
-            try {
-                // Verificar y censurar si es necesario
-                val hadInappropriateName = registerViewModel.checkAndCensorExistingUserName(userId)
-
-                if (hadInappropriateName) {
-                    Log.d(TAG, "⚠️ Nombre inapropiado detectado al iniciar sesión")
-                    // Redirigir directamente al perfil
-                    val intent = Intent(this@LoginActivity, ProfileActivity::class.java).apply {
-                        putExtra("force_name_update", true)
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                    }
-                    startActivity(intent)
-                    finish()
-                } else {
-                    // Continuar con navegación normal
-                    navigateBasedOnRole(userId)
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error verificando nombre: ${e.message}")
-                // En caso de error, continuar con navegación normal
-                navigateBasedOnRole(userId)
-            }
-        }
-    }
-
-    // ✅ NUEVA: Verificar nombre inapropiado y navegar (para login nuevo)
-    private fun checkInappropriateNameAndNavigate() {
-        val userId = auth.currentUser?.uid ?: return
-
-        lifecycleScope.launch {
-            try {
-                // Verificar y censurar si es necesario
-                val hadInappropriateName = registerViewModel.checkAndCensorExistingUserName(userId)
-
-                dismissProgressDialog()
-
-                if (hadInappropriateName) {
-                    Log.d(TAG, "⚠️ Nombre inapropiado detectado")
-
-                    // Mostrar advertencia
-                    SweetAlertDialog(this@LoginActivity, SweetAlertDialog.WARNING_TYPE)
-                        .setTitleText("⚠️ Actualización de perfil requerida")
-                        .setContentText("Tu nombre de perfil contiene contenido inapropiado y ha sido censurado. Por favor actualiza tu perfil con un nombre apropiado.")
-                        .setConfirmText("Ir a perfil")
-                        .setConfirmClickListener { dialog ->
-                            dialog.dismiss()
-                            val intent = Intent(this@LoginActivity, ProfileActivity::class.java).apply {
-                                putExtra("force_name_update", true)
-                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                            }
-                            startActivity(intent)
-                            finish()
-                        }
-                        .setCancelButton("Después") { dialog ->
-                            dialog.dismiss()
-                            navigateBasedOnRole(userId)
-                        }
-                        .show()
-                } else {
-                    // Continuar con navegación normal
-                    navigateBasedOnRole(userId)
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error verificando nombre: ${e.message}")
-                dismissProgressDialog()
-                // En caso de error, continuar con navegación normal
-                navigateBasedOnRole(userId)
-            }
-        }
-    }
-
-    // ✅ NUEVA: Función auxiliar para navegar según el rol
-    private fun navigateBasedOnRole(userId: String) {
-        firestore.collection("renters")
-            .document(userId)
-            .get()
-            .addOnSuccessListener { document ->
-                val intent = if (document.exists()) {
-                    Log.d(TAG, "👤 Arrendatario - Navegando a RenterDashboard")
-                    Intent(this, RenterDashboardActivity::class.java)
-                } else {
-                    Log.d(TAG, "👤 Cliente - Navegando a MainActivity")
-                    Intent(this, MainActivity::class.java)
-                }
-
-                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                startActivity(intent)
-                finish()
-            }
-            .addOnFailureListener { e ->
-                Log.e(TAG, "Error verificando rol: ${e.message}")
-                // Por defecto, ir a MainActivity
-                val intent = Intent(this, MainActivity::class.java)
-                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                startActivity(intent)
-                finish()
-            }
     }
 
     private fun validateLoginInput(email: String, password: String): Boolean {

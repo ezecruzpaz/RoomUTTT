@@ -56,7 +56,8 @@
             </LinearLayout>
         </RelativeLayout>
 
-        <!-- Barra de búsqueda y filtros -->
+        <!-- Barra de búsqueda y filtros - COMENTADO -->
+        <!--
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -65,7 +66,6 @@
             android:background="#FFFFFF"
             android:elevation="1dp">
 
-            <!-- Campo de búsqueda -->
             <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -94,7 +94,6 @@
 
             </com.google.android.material.textfield.TextInputLayout>
 
-            <!-- Botón de Filtros -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_filters"
                 android:layout_width="wrap_content"
@@ -113,8 +112,10 @@
                 style="@style/Widget.MaterialComponents.Button" />
 
         </LinearLayout>
+        -->
 
-        <!-- Chips de filtros activos -->
+        <!-- Chips de filtros activos - COMENTADO -->
+        <!--
         <HorizontalScrollView
             android:id="@+id/scroll_active_filters"
             android:layout_width="match_parent"
@@ -133,6 +134,7 @@
                 app:chipSpacingHorizontal="8dp" />
 
         </HorizontalScrollView>
+        -->
 
         <!-- Contador de cuartos -->
         <LinearLayout

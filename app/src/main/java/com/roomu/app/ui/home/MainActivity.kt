@@ -1,23 +1,25 @@
 package com.roomu.app.ui.home
 
 import android.Manifest
+import android.app.Dialog
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Location
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.util.Log
 import android.view.View
-import android.widget.EditText
-import android.widget.ImageView
-import android.widget.ProgressBar
-import android.widget.TextView
+import android.view.ViewGroup
+import android.view.Window
+import android.widget.*
 import cn.pedant.SweetAlert.SweetAlertDialog
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.widget.SearchView
 import androidx.core.content.ContextCompat
+import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -28,14 +30,19 @@ import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
-import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.libraries.places.api.Places
 import com.google.android.libraries.places.api.model.AutocompleteSessionToken
 import com.google.android.libraries.places.api.model.Place
 import com.google.android.libraries.places.api.net.FindAutocompletePredictionsRequest
 import com.google.android.libraries.places.api.net.PlacesClient
+import com.google.android.material.bottomnavigation.BottomNavigationView
+import com.google.android.material.button.MaterialButton
+import com.google.android.material.chip.Chip
+import com.google.android.material.chip.ChipGroup
+import com.google.android.material.textfield.TextInputEditText
 import com.google.firebase.auth.FirebaseAuth
 import com.roomu.app.R
+import com.roomu.app.domain.model.RoomData
 import com.roomu.app.ui.chat.ChatsListActivity
 import com.roomu.app.ui.home.adapter.RoomAdapter
 import com.roomu.app.ui.home.viewmodel.MainViewModel
@@ -43,34 +50,55 @@ import com.roomu.app.ui.profile.ProfileActivity
 import com.roomu.app.ui.room.AllRoomsActivity
 import com.roomu.app.ui.room.RoomDetailActivity
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private val viewModel: MainViewModel by viewModels()
-    private lateinit var searchView: SearchView
+
+    // Views
     private lateinit var ivProfile: ImageView
     private lateinit var ivNotifications: ImageView
+    private lateinit var ivLogout: ImageView
     private lateinit var recyclerRooms: RecyclerView
     private lateinit var progressBar: ProgressBar
     private lateinit var tvNoRooms: TextView
+    private lateinit var layoutNoResults: LinearLayout
     private lateinit var bottomNavigation: BottomNavigationView
-    private lateinit var fusedLocationClient: FusedLocationProviderClient
-    private lateinit var ivLogout: ImageView
+    private lateinit var etSearch: TextInputEditText
+    private lateinit var btnFilters: MaterialButton
+    private lateinit var scrollActiveFilters: HorizontalScrollView
+    private lateinit var chipGroupActiveFilters: ChipGroup
+    private lateinit var tvRoomsCount: TextView
+    private lateinit var tvClearSearch: TextView
 
+    private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var placesClient: PlacesClient
     private var sessionToken: AutocompleteSessionToken? = null
-
     private lateinit var roomAdapter: RoomAdapter
 
     private val TAG = "MainActivity"
     private var googleMap: GoogleMap? = null
     private var locationMessageShown = false
     private var isFirstLocationAccess = true
-
-    // ✅ Diálogo de carga para búsquedas
     private var searchLoadingDialog: SweetAlertDialog? = null
+
+    // Filtros
+    private var searchQuery = ""
+    private var minPrice: Double? = null
+    private var maxPrice: Double? = null
+    private var selectedCapacity: Int? = null
+    private val selectedServices = mutableListOf<String>()
+
+    // Lista completa de cuartos
+    private var allRoomsList: List<RoomData> = emptyList()
+    private var isSearchingPlace = false
+    private var searchJob: Job? = null
 
     private val locationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -85,7 +113,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         setContentView(R.layout.activity_main)
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
@@ -96,102 +123,491 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         placesClient = Places.createClient(this)
 
         initViews()
-        setupSearchViewStyle()
         setupListeners()
         setupRecyclerView()
         setupBottomNavigation()
 
-        val mapFragment = supportFragmentManager.findFragmentById(R.id.map_fragment) as SupportMapFragment
-        mapFragment.getMapAsync(this)
+        // 🔥 INICIALIZAR MAPA EN BACKGROUND DESPUÉS DE MOSTRAR LA UI
+        lifecycleScope.launch {
+            // Esperar 300ms para que la UI se renderice primero
+            delay(300)
+
+            withContext(Dispatchers.Main) {
+                val mapFragment = supportFragmentManager.findFragmentById(R.id.map_fragment) as? SupportMapFragment
+                mapFragment?.getMapAsync(this@MainActivity)
+            }
+        }
 
         observeViewModel()
-        checkAndRequestLocationPermission()
+
+        // 🔥 CARGAR UBICACIÓN Y DATOS EN BACKGROUND
+        lifecycleScope.launch {
+            delay(100) // Dar tiempo a la UI
+            checkAndRequestLocationPermission()
+        }
     }
 
     private fun initViews() {
-        searchView = findViewById(R.id.search_view)
         ivProfile = findViewById(R.id.iv_profile)
         ivNotifications = findViewById(R.id.iv_notifications)
         ivLogout = findViewById(R.id.iv_logout)
         recyclerRooms = findViewById(R.id.recycler_rooms)
         progressBar = findViewById(R.id.progress_bar)
         tvNoRooms = findViewById(R.id.tv_no_rooms)
+        layoutNoResults = findViewById(R.id.layout_no_results)
         bottomNavigation = findViewById(R.id.bottom_navigation)
+        etSearch = findViewById(R.id.et_search)
+        btnFilters = findViewById(R.id.btn_filters)
+        scrollActiveFilters = findViewById(R.id.scroll_active_filters)
+        chipGroupActiveFilters = findViewById(R.id.chip_group_active_filters)
+        tvRoomsCount = findViewById(R.id.tv_rooms_count)
+        tvClearSearch = findViewById(R.id.tv_clear_search)
 
         supportActionBar?.title = "Inicio"
         supportActionBar?.setDisplayHomeAsUpEnabled(false)
     }
 
-    private fun setupSearchViewStyle() {
-        try {
-            val searchEditTextId = searchView.context.resources.getIdentifier(
-                "search_src_text",
-                "id",
-                searchView.context.packageName
-            )
-
-            if (searchEditTextId != 0) {
-                val searchEditText = searchView.findViewById<EditText>(searchEditTextId)
-                searchEditText?.apply {
-                    setTextColor(android.graphics.Color.BLACK)
-                    setHintTextColor(android.graphics.Color.GRAY)
-                    textSize = 14f
-                }
-            } else {
-                findSearchEditText(searchView)?.apply {
-                    setTextColor(android.graphics.Color.BLACK)
-                    setHintTextColor(android.graphics.Color.GRAY)
-                    textSize = 14f
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error configurando SearchView: ${e.message}")
-        }
-    }
-
-    private fun findSearchEditText(view: View): EditText? {
-        if (view is EditText) {
-            return view
-        }
-        if (view is android.view.ViewGroup) {
-            for (i in 0 until view.childCount) {
-                val result = findSearchEditText(view.getChildAt(i))
-                if (result != null) return result
-            }
-        }
-        return null
-    }
-
     private fun setupListeners() {
-        searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
-            override fun onQueryTextSubmit(query: String?): Boolean {
-                if (!query.isNullOrEmpty()) {
-                    searchPlaceAndRooms(query)
-                    searchView.clearFocus()
-                }
-                return true
-            }
-
-            override fun onQueryTextChange(newText: String?): Boolean {
-                if (newText.isNullOrEmpty()) {
-                    viewModel.searchRooms("")
-                }
-                return true
-            }
-        })
-
         ivProfile.setOnClickListener {
             startActivity(Intent(this, ProfileActivity::class.java))
         }
 
         ivNotifications.setOnClickListener {
-            val intent = Intent(this, com.roomu.app.ui.notifications.NotificationsActivity::class.java)
-            startActivity(intent)
+            startActivity(Intent(this, com.roomu.app.ui.notifications.NotificationsActivity::class.java))
         }
 
         ivLogout.setOnClickListener {
             showLogoutConfirmationDialog()
         }
+
+        etSearch.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                val query = s.toString().trim()
+
+                // Cancelar búsqueda anterior
+                searchJob?.cancel()
+
+                if (query.isEmpty()) {
+                    searchQuery = ""
+                    isSearchingPlace = false
+                    applyLocalFilters()
+                    updateMapMarkers()
+                    tvClearSearch.isVisible = hasActiveFilters()
+                } else {
+                    searchQuery = query
+
+                    // 🔥 PASO 1: Filtrar cuartos INMEDIATAMENTE por nombre/descripción
+                    val matchingRooms = allRoomsList.filter { room ->
+                        room.nombre.contains(query, ignoreCase = true) ||
+                                room.descripcion?.contains(query, ignoreCase = true) == true ||
+                                room.ubicacion.contains(query, ignoreCase = true)
+                    }
+
+                    // Si encuentra cuartos que coinciden, mostrarlos SIN buscar lugar
+                    if (matchingRooms.isNotEmpty()) {
+                        Log.d(TAG, "🏠 ${matchingRooms.size} cuartos encontrados con '$query'")
+
+                        // Aplicar filtros sobre los cuartos encontrados
+                        applyLocalFilters()
+
+                        // NO mover el mapa, solo actualizar marcadores
+                        updateMapMarkers()
+                        tvClearSearch.isVisible = true
+
+                        // 🔥 NO buscar lugar si ya encontró cuartos
+                        return@afterTextChanged
+                    }
+
+                    // 🔥 PASO 2: Si NO encuentra cuartos, buscar como LUGAR
+                    searchJob = lifecycleScope.launch {
+                        delay(800)
+
+                        // Buscar lugar solo si tiene más de 3 caracteres y NO encontró cuartos
+                        if (query.length > 3) {
+                            Log.d(TAG, "🗺️ No se encontraron cuartos, buscando lugar: '$query'")
+                            searchPlaceInParallel(query)
+                        } else {
+                            // Búsqueda muy corta sin resultados
+                            applyLocalFilters()
+                            updateMapMarkers()
+                        }
+                    }
+
+                    tvClearSearch.isVisible = true
+                }
+            }
+        })
+
+        tvClearSearch.setOnClickListener {
+            clearAllFilters()
+        }
+
+        btnFilters.setOnClickListener {
+            showFilterDialog()
+        }
+    }
+
+    // Buscar lugar en paralelo (sin bloquear búsqueda de cuartos)
+    private fun searchPlaceInParallel(query: String) {
+        sessionToken = AutocompleteSessionToken.newInstance()
+
+        val request = FindAutocompletePredictionsRequest.builder()
+            .setSessionToken(sessionToken)
+            .setQuery(query)
+            .build()
+
+        placesClient.findAutocompletePredictions(request)
+            .addOnSuccessListener { response ->
+                val predictions = response.autocompletePredictions
+
+                if (predictions.isNotEmpty()) {
+                    val firstPrediction = predictions[0]
+                    Log.d(TAG, "🗺️ Lugar encontrado: ${firstPrediction.getPrimaryText(null)}")
+
+                    // Mostrar diálogo preguntando si quiere ir a ese lugar
+                    SweetAlertDialog(this, SweetAlertDialog.NORMAL_TYPE)
+                        .setTitleText("¿Buscar cuartos aquí?")
+                        .setContentText(firstPrediction.getFullText(null).toString())
+                        .setConfirmText("Sí, buscar")
+                        .setCancelText("No")
+                        .setConfirmClickListener { dialog ->
+                            dialog.dismissWithAnimation()
+                            showSearchLoading()
+                            fetchPlaceDetailsAndNavigate(firstPrediction.placeId, query)
+                        }
+                        .setCancelClickListener {
+                            it.dismissWithAnimation()
+                            // Si cancela, volver a filtros normales
+                            applyLocalFilters()
+                            updateMapMarkers()
+                        }
+                        .show()
+                } else {
+                    Log.d(TAG, "⚠️ No se encontró lugar ni cuartos para '$query'")
+
+                    // No encontró nada, mostrar sin resultados
+                    applyLocalFilters()
+                    updateMapMarkers()
+                }
+            }
+            .addOnFailureListener { exception ->
+                Log.e(TAG, "Error buscando lugar: ${exception.message}")
+
+                // Si falla búsqueda de lugar, mantener filtros normales
+                applyLocalFilters()
+                updateMapMarkers()
+            }
+    }
+
+    private fun fetchPlaceDetailsAndNavigate(placeId: String, originalQuery: String) {
+        val placeFields = listOf(Place.Field.ID, Place.Field.NAME, Place.Field.LAT_LNG)
+        val request = com.google.android.libraries.places.api.net.FetchPlaceRequest
+            .builder(placeId, placeFields)
+            .setSessionToken(sessionToken)
+            .build()
+
+        placesClient.fetchPlace(request)
+            .addOnSuccessListener { response ->
+                dismissSearchLoading()
+
+                val place = response.place
+                place.latLng?.let { latLng ->
+                    isSearchingPlace = true
+
+                    // Limpiar búsqueda de texto para no interferir
+                    searchQuery = ""
+                    etSearch.setText("")
+
+                    // 🔥 Actualizar ubicación y filtrar cuartos en ese lugar
+                    viewModel.updateLocationAndFilter(latLng.latitude, latLng.longitude)
+
+                    googleMap?.animateCamera(
+                        CameraUpdateFactory.newLatLngZoom(latLng, 11f)
+                    )
+
+                    SweetAlertDialog(this, SweetAlertDialog.SUCCESS_TYPE)
+                        .setTitleText("Ubicación encontrada")
+                        .setContentText("Mostrando cuartos cerca de ${place.name ?: "este lugar"}")
+                        .show()
+                }
+            }
+            .addOnFailureListener { exception ->
+                dismissSearchLoading()
+                Log.e(TAG, "Error obteniendo detalles: ${exception.message}")
+
+                SweetAlertDialog(this, SweetAlertDialog.ERROR_TYPE)
+                    .setTitleText("Error")
+                    .setContentText("No se pudo obtener la ubicación")
+                    .show()
+            }
+    }
+
+    private fun showFilterDialog() {
+        val dialog = Dialog(this).apply {
+            requestWindowFeature(Window.FEATURE_NO_TITLE)
+            setContentView(R.layout.dialog_filter_rooms)
+            window?.setLayout(
+                (resources.displayMetrics.widthPixels * 0.95).toInt(),
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+            window?.setBackgroundDrawableResource(android.R.color.transparent)
+        }
+
+        // Views del diálogo
+        val etMinPrice = dialog.findViewById<TextInputEditText>(R.id.et_min_price)
+        val etMaxPrice = dialog.findViewById<TextInputEditText>(R.id.et_max_price)
+        val chipGroupCapacity = dialog.findViewById<ChipGroup>(R.id.chip_group_capacity)
+        val chipGroupServices = dialog.findViewById<ChipGroup>(R.id.chip_group_services)
+        val tvClearAll = dialog.findViewById<TextView>(R.id.tv_clear_all_filters)
+        val btnCancel = dialog.findViewById<Button>(R.id.btn_cancel_filter)
+        val btnApply = dialog.findViewById<Button>(R.id.btn_apply_filter)
+
+        // Cargar valores actuales
+        etMinPrice.setText(minPrice?.toString() ?: "")
+        etMaxPrice.setText(maxPrice?.toString() ?: "")
+
+        // Capacidad
+        chipGroupCapacity.check(
+            when (selectedCapacity) {
+                null -> R.id.chip_capacity_all
+                1 -> R.id.chip_capacity_1
+                2 -> R.id.chip_capacity_2
+                3 -> R.id.chip_capacity_3
+                else -> R.id.chip_capacity_4
+            }
+        )
+
+        // Servicios
+        val serviceChipMap = mapOf(
+            R.id.chip_service_wifi to "Wi-Fi",
+            R.id.chip_service_kitchen to "Cocina",
+            R.id.chip_service_bathroom to "Baño privado",
+            R.id.chip_service_washing to "Lavadora",
+            R.id.chip_service_furniture to "Mobiliario",
+            R.id.chip_service_utilities to "Servicios incluidos"
+        )
+
+        serviceChipMap.forEach { (chipId, service) ->
+            dialog.findViewById<Chip>(chipId)?.isChecked = selectedServices.contains(service)
+        }
+
+        tvClearAll.setOnClickListener {
+            etMinPrice.text?.clear()
+            etMaxPrice.text?.clear()
+            chipGroupCapacity.check(R.id.chip_capacity_all)
+            chipGroupServices.clearCheck()
+        }
+
+        btnCancel.setOnClickListener { dialog.dismiss() }
+
+        btnApply.setOnClickListener {
+            minPrice = etMinPrice.text.toString().toDoubleOrNull()
+            maxPrice = etMaxPrice.text.toString().toDoubleOrNull()
+
+            selectedCapacity = when (chipGroupCapacity.checkedChipId) {
+                R.id.chip_capacity_1 -> 1
+                R.id.chip_capacity_2 -> 2
+                R.id.chip_capacity_3 -> 3
+                R.id.chip_capacity_4 -> 4
+                else -> null
+            }
+
+            selectedServices.clear()
+            serviceChipMap.forEach { (chipId, service) ->
+                if (dialog.findViewById<Chip>(chipId)?.isChecked == true) {
+                    selectedServices.add(service)
+                }
+            }
+
+            applyLocalFilters()
+            updateMapMarkers()
+            updateActiveFiltersChips()
+            dialog.dismiss()
+
+            tvClearSearch.isVisible = hasActiveFilters() || searchQuery.isNotEmpty()
+        }
+
+        dialog.show()
+    }
+
+    private fun applyLocalFilters() {
+        val filtered = allRoomsList.filter { room ->
+            room.matchesFilters(
+                searchQuery = searchQuery,
+                minPrice = minPrice,
+                maxPrice = maxPrice,
+                minCapacity = selectedCapacity,
+                maxCapacity = if (selectedCapacity != null && selectedCapacity!! >= 4) null else selectedCapacity,
+                selectedServices = selectedServices
+            )
+        }
+
+        roomAdapter.submitList(filtered)
+        updateRoomsCount(filtered.size)
+
+        recyclerRooms.isVisible = filtered.isNotEmpty()
+        layoutNoResults.isVisible = filtered.isEmpty()
+        tvNoRooms.isVisible = false
+
+        Log.d(TAG, "🔍 Filtros aplicados: ${filtered.size} de ${allRoomsList.size} cuartos")
+    }
+
+    private fun updateMapMarkers() {
+        googleMap?.let { map ->
+            // Obtener los cuartos filtrados actuales
+            val filtered = allRoomsList.filter { room ->
+                room.matchesFilters(
+                    searchQuery = searchQuery,
+                    minPrice = minPrice,
+                    maxPrice = maxPrice,
+                    minCapacity = selectedCapacity,
+                    maxCapacity = if (selectedCapacity != null && selectedCapacity!! >= 4) null else selectedCapacity,
+                    selectedServices = selectedServices
+                )
+            }
+
+            // Actualizar marcadores en el mapa usando el ViewModel
+            viewModel.updateMapMarkersWithFilteredRooms(filtered)
+
+            // Si hay resultados filtrados, ajustar la cámara para mostrarlos todos
+            if (filtered.isNotEmpty()) {
+                val bounds = com.google.android.gms.maps.model.LatLngBounds.builder()
+                var hasValidLocation = false
+
+                filtered.forEach { room ->
+                    room.getLatLng()?.let { (lat, lng) ->
+                        bounds.include(LatLng(lat, lng))
+                        hasValidLocation = true
+                    }
+                }
+
+                if (hasValidLocation) {
+                    try {
+                        map.animateCamera(
+                            CameraUpdateFactory.newLatLngBounds(
+                                bounds.build(),
+                                100 // padding
+                            )
+                        )
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error ajustando cámara: ${e.message}")
+                    }
+                }
+            }
+
+            Log.d(TAG, "🗺️ Mapa actualizado con ${filtered.size} cuartos")
+        }
+    }
+
+    private fun updateActiveFiltersChips() {
+        chipGroupActiveFilters.removeAllViews()
+        val activeFilters = mutableListOf<Pair<String, () -> Unit>>()
+
+        // Precio
+        if (minPrice != null || maxPrice != null) {
+            val priceText = buildString {
+                append("Precio: ")
+                if (minPrice != null) append("$${minPrice?.toInt()}")
+                if (minPrice != null && maxPrice != null) append(" - ")
+                if (maxPrice != null) append("$${maxPrice?.toInt()}")
+            }
+            activeFilters.add(priceText to {
+                minPrice = null
+                maxPrice = null
+                applyLocalFilters()
+                updateMapMarkers()
+                updateActiveFiltersChips()
+            })
+        }
+
+        // Capacidad
+        if (selectedCapacity != null) {
+            val capacityText = if (selectedCapacity!! >= 4) "4+ personas" else "$selectedCapacity persona${if (selectedCapacity!! > 1) "s" else ""}"
+            activeFilters.add(capacityText to {
+                selectedCapacity = null
+                applyLocalFilters()
+                updateMapMarkers()
+                updateActiveFiltersChips()
+            })
+        }
+
+        // Servicios
+        selectedServices.forEach { service ->
+            activeFilters.add(service to {
+                selectedServices.remove(service)
+                applyLocalFilters()
+                updateMapMarkers()
+                updateActiveFiltersChips()
+            })
+        }
+
+        val nightModeFlags = resources.configuration.uiMode and
+                android.content.res.Configuration.UI_MODE_NIGHT_MASK
+        val isSystemInDarkMode = nightModeFlags == android.content.res.Configuration.UI_MODE_NIGHT_YES
+
+        activeFilters.forEach { (text, onClose) ->
+            val chip = Chip(this).apply {
+                this.text = text
+                isCloseIconVisible = true
+                setOnCloseIconClickListener { onClose() }
+
+                if (isSystemInDarkMode) {
+                    chipBackgroundColor = android.content.res.ColorStateList.valueOf(
+                        android.graphics.Color.WHITE
+                    )
+                    setTextColor(android.graphics.Color.BLACK)
+                    closeIconTint = android.content.res.ColorStateList.valueOf(
+                        android.graphics.Color.BLACK
+                    )
+                } else {
+                    chipBackgroundColor = android.content.res.ColorStateList.valueOf(
+                        android.graphics.Color.BLACK
+                    )
+                    setTextColor(android.graphics.Color.WHITE)
+                    closeIconTint = android.content.res.ColorStateList.valueOf(
+                        android.graphics.Color.WHITE
+                    )
+                }
+
+                chipStrokeWidth = 0f
+            }
+            chipGroupActiveFilters.addView(chip)
+        }
+
+        scrollActiveFilters.isVisible = activeFilters.isNotEmpty()
+    }
+
+    private fun clearAllFilters() {
+        searchQuery = ""
+        minPrice = null
+        maxPrice = null
+        selectedCapacity = null
+        selectedServices.clear()
+        isSearchingPlace = false
+
+        etSearch.text?.clear()
+        applyLocalFilters()
+        updateMapMarkers()
+        updateActiveFiltersChips()
+        tvClearSearch.isVisible = false
+
+        // Restaurar vista del mapa a ubicación actual o predeterminada
+        viewModel.currentLocation.value?.let { location ->
+            googleMap?.animateCamera(
+                CameraUpdateFactory.newLatLngZoom(location, 11f)
+            )
+        }
+
+        Log.d(TAG, "🧹 Todos los filtros limpiados")
+    }
+
+    private fun hasActiveFilters(): Boolean =
+        minPrice != null || maxPrice != null || selectedCapacity != null || selectedServices.isNotEmpty()
+
+    private fun updateRoomsCount(count: Int) {
+        tvRoomsCount.text = "$count cuarto${if (count != 1) "s" else ""} ${if (count != 1) "encontrados" else "encontrado"}"
     }
 
     private fun showLogoutConfirmationDialog() {
@@ -246,9 +662,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
-    // ✅ Mostrar loading durante búsqueda
     private fun showSearchLoading() {
-        dismissSearchLoading() // Cerrar cualquier diálogo previo
+        dismissSearchLoading()
         searchLoadingDialog = SweetAlertDialog(this, SweetAlertDialog.PROGRESS_TYPE)
             .setTitleText("Buscando ubicación...")
             .setContentText("Por favor espera")
@@ -256,96 +671,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         searchLoadingDialog?.show()
     }
 
-    // ✅ Cerrar loading de búsqueda
     private fun dismissSearchLoading() {
         searchLoadingDialog?.dismissWithAnimation()
         searchLoadingDialog = null
-    }
-
-    private fun searchPlaceAndRooms(query: String) {
-        // ✅ Mostrar loading
-        showSearchLoading()
-
-        sessionToken = AutocompleteSessionToken.newInstance()
-
-        val request = FindAutocompletePredictionsRequest.builder()
-            .setSessionToken(sessionToken)
-            .setQuery(query)
-            .build()
-
-        placesClient.findAutocompletePredictions(request)
-            .addOnSuccessListener { response ->
-                val predictions = response.autocompletePredictions
-
-                if (predictions.isNotEmpty()) {
-                    val firstPrediction = predictions[0]
-                    fetchPlaceDetails(firstPrediction.placeId, query)
-                } else {
-                    // ✅ Cerrar loading antes de mostrar mensaje
-                    dismissSearchLoading()
-
-                    viewModel.searchRooms(query)
-
-                    SweetAlertDialog(this, SweetAlertDialog.WARNING_TYPE)
-                        .setTitleText("Lugar no encontrado")
-                        .setContentText("No se encontró el lugar. Buscando en cuartos...")
-                        .show()
-                }
-            }
-            .addOnFailureListener { exception ->
-                // ✅ Cerrar loading en caso de error
-                dismissSearchLoading()
-
-                Log.e(TAG, "Error en búsqueda: ${exception.message}")
-                viewModel.searchRooms(query)
-
-                SweetAlertDialog(this, SweetAlertDialog.ERROR_TYPE)
-                    .setTitleText("Error")
-                    .setContentText("Error al buscar: ${exception.message}")
-                    .show()
-            }
-    }
-
-    private fun fetchPlaceDetails(placeId: String, originalQuery: String) {
-        val placeFields = listOf(Place.Field.ID, Place.Field.NAME, Place.Field.LAT_LNG)
-        val request = com.google.android.libraries.places.api.net.FetchPlaceRequest
-            .builder(placeId, placeFields)
-            .setSessionToken(sessionToken)
-            .build()
-
-        placesClient.fetchPlace(request)
-            .addOnSuccessListener { response ->
-                // ✅ Cerrar loading
-                dismissSearchLoading()
-
-                val place = response.place
-                place.latLng?.let { latLng ->
-                    viewModel.updateLocationAndFilter(latLng.latitude, latLng.longitude)
-
-                    googleMap?.animateCamera(
-                        CameraUpdateFactory.newLatLngZoom(latLng, 11f)
-                    )
-
-                    SweetAlertDialog(this, SweetAlertDialog.SUCCESS_TYPE)
-                        .setTitleText("Ubicación encontrada")
-                        .setContentText(place.name ?: "Lugar encontrado")
-                        .show()
-                } ?: run {
-                    viewModel.searchRooms(originalQuery)
-                }
-            }
-            .addOnFailureListener { exception ->
-                // ✅ Cerrar loading en caso de error
-                dismissSearchLoading()
-
-                Log.e(TAG, "Error obteniendo detalles: ${exception.message}")
-                viewModel.searchRooms(originalQuery)
-
-                SweetAlertDialog(this, SweetAlertDialog.ERROR_TYPE)
-                    .setTitleText("Error")
-                    .setContentText("Error al obtener detalles del lugar")
-                    .show()
-            }
     }
 
     private fun setupRecyclerView() {
@@ -361,8 +689,21 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 R.id.nav_home -> true
 
                 R.id.nav_rooms -> {
+                    // 🔥 OBTENER LOS CUARTOS ACTUALMENTE FILTRADOS
+                    val currentFilteredRooms = allRoomsList.filter { room ->
+                        room.matchesFilters(
+                            searchQuery = searchQuery,
+                            minPrice = minPrice,
+                            maxPrice = maxPrice,
+                            minCapacity = selectedCapacity,
+                            maxCapacity = if (selectedCapacity != null && selectedCapacity!! >= 4) null else selectedCapacity,
+                            selectedServices = selectedServices
+                        )
+                    }
+
                     val intent = Intent(this, AllRoomsActivity::class.java)
-                    intent.putExtra("allRooms", ArrayList(viewModel.getAllRooms()))
+                    // 🔥 PASAR LOS CUARTOS FILTRADOS, NO TODOS
+                    intent.putExtra("allRooms", ArrayList(currentFilteredRooms))
                     startActivity(intent)
                     false
                 }
@@ -390,20 +731,20 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
             launch {
                 viewModel.rooms.collect { rooms ->
-                    if (rooms.isEmpty()) {
+                    allRoomsList = viewModel.getAllRooms()
+
+                    if (allRoomsList.isEmpty()) {
                         tvNoRooms.visibility = View.VISIBLE
                         recyclerRooms.visibility = View.GONE
+                        layoutNoResults.visibility = View.GONE
                     } else {
                         tvNoRooms.visibility = View.GONE
-                        recyclerRooms.visibility = View.VISIBLE
-
-                        val allRooms = viewModel.getAllRooms()
 
                         roomAdapter = RoomAdapter(
                             onRoomClick = { room ->
                                 val intent = Intent(this@MainActivity, RoomDetailActivity::class.java)
                                 intent.putExtra("room_id", room.id)
-                                intent.putExtra("allRooms", ArrayList(allRooms))
+                                intent.putExtra("allRooms", ArrayList(allRoomsList))
                                 startActivity(intent)
 
                                 room.getLatLng()?.let { (lat, lng) ->
@@ -412,26 +753,31 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                                     )
                                 }
                             },
-                            allRooms = allRooms
+                            allRooms = allRoomsList
                         )
 
                         recyclerRooms.adapter = roomAdapter
-                        roomAdapter.submitList(rooms)
+                        applyLocalFilters()
+                        updateMapMarkers()
                     }
                 }
             }
         }
     }
 
+    // 🔥 OPTIMIZAR onMapReady - No hacer operaciones pesadas
     override fun onMapReady(googleMap: GoogleMap) {
         this.googleMap = googleMap
-        viewModel.initMap(googleMap)
 
+        // 🔥 Configuración básica primero
         googleMap.uiSettings.apply {
             isZoomControlsEnabled = true
             isMyLocationButtonEnabled = true
             isCompassEnabled = true
         }
+
+        // 🔥 Inicializar en el ViewModel (sin await)
+        viewModel.initMap(googleMap)
 
         val defaultLocation = LatLng(20.0910, -98.7624)
         googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(defaultLocation, 11f))
@@ -439,6 +785,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         if (hasLocationPermission()) {
             enableMyLocation()
         }
+
+        Log.d(TAG, "✅ Mapa inicializado correctamente")
     }
 
     private fun checkAndRequestLocationPermission() {
@@ -568,9 +916,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
-    // ✅ Cerrar loading si la actividad se destruye
     override fun onDestroy() {
         super.onDestroy()
         dismissSearchLoading()
+        searchJob?.cancel()
     }
 }

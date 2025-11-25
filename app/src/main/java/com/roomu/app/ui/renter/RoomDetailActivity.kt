@@ -412,7 +412,7 @@ class RoomDetailActivity : AppCompatActivity(), OnMapReadyCallback {
                 }
                 append("\n━━━━━━━━━━━━━━━━━\n")
                 append("📱 *Descarga RoomU y encuentra tu cuarto ideal*\n")
-                append("🔗 https://roomu.app/download\n")
+                append("🔗 https://friendly-gnome-1575ce.netlify.app\n")
                 append("\n¡Tu próximo hogar te está esperando! 🏡")
             }
 
@@ -420,9 +420,9 @@ class RoomDetailActivity : AppCompatActivity(), OnMapReadyCallback {
                 shareWithImage(context, roomData, shareText)
             } else {
                 shareTextOnly(context, shareText)
+                }
             }
         }
-    }
 
     private fun shareTextOnly(context: Context, text: String) {
         val shareIntent = Intent().apply {
